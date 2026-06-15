@@ -16,7 +16,9 @@ from app.schemas.schemas import (
     SocialAccountResponse,
     SchedulePostRequest,
     ScheduledPostResponse,
-    PublishNowRequest
+    PublishNowRequest,
+    ContentUpdateRequest,
+    ContentTemplateCreate
 )
 from app.services.content_generator import generate_all_content
 from app.services.ai_service import ai_service
@@ -506,25 +508,43 @@ async def publish_now(
             SocialAccount.id == request.social_account_id
         ).first()
     
-    # Publish based on platform
+    # Check if mock mode is enabled
+    use_mock = account.is_mock_mode if account else True
+    
+    # Publish based on platform and account configuration
     if request.platform == "linkedin":
-        from app.services.linkedin_service import get_linkedin_service
-        access_token = account.access_token if account else None
-        service = get_linkedin_service(access_token)
-        result = await service.post_text(request.content)
+        if use_mock:
+            from app.services.mock_service import get_mock_service
+            service = get_mock_service("linkedin", account.account_name if account else None)
+            result = service.post_text(request.content)
+        else:
+            from app.services.linkedin_service import get_linkedin_service
+            access_token = account.access_token if account else None
+            service = get_linkedin_service(access_token)
+            result = await service.post_text(request.content)
     elif request.platform == "facebook":
-        from app.services.facebook_service import get_facebook_service
-        access_token = account.access_token if account else None
-        page_id = account.account_id if account else None
-        service = get_facebook_service(access_token)
-        result = await service.post_to_page(request.content, page_id)
+        if use_mock:
+            from app.services.mock_service import get_mock_service
+            service = get_mock_service("facebook", account.account_name if account else None)
+            result = service.post_text(request.content)
+        else:
+            from app.services.facebook_service import get_facebook_service
+            access_token = account.access_token if account else None
+            page_id = account.account_id if account else None
+            service = get_facebook_service(access_token)
+            result = await service.post_to_page(request.content, page_id)
     elif request.platform == "google_business":
-        from app.services.google_business_service import get_google_business_service
-        api_key = account.access_token if account else None
-        access_token = account.refresh_token if account else None
-        location_id = account.account_id if account else None
-        service = get_google_business_service(api_key, access_token)
-        result = await service.create_local_post(request.content, location_id)
+        if use_mock:
+            from app.services.mock_service import get_mock_service
+            service = get_mock_service("google_business", account.account_name if account else None)
+            result = service.post_text(request.content)
+        else:
+            from app.services.google_business_service import get_google_business_service
+            api_key = account.access_token if account else None
+            access_token = account.refresh_token if account else None
+            location_id = account.account_id if account else None
+            service = get_google_business_service(api_key, access_token)
+            result = await service.create_local_post(request.content, location_id)
     else:
         return {"success": False, "error": f"Unknown platform: {request.platform}"}
     
@@ -561,5 +581,266 @@ async def get_status():
         "facebook_configured": FacebookService().is_configured(),
         "google_business_configured": GoogleBusinessService().is_configured(),
         "scheduler_running": True,
-        "message": "System ready"
+        "message": "System ready",
+        "mock_mode_available": True
     }
+
+
+# ==================== Content Editing Endpoints ====================
+
+@router.put("/contents/{content_id}")
+async def update_content(
+    content_id: int,
+    request: ContentUpdateRequest,
+    db: Session = Depends(get_db)
+):
+    """Update (edit) generated content."""
+    content = db.query(GeneratedContent).filter(
+        GeneratedContent.id == content_id
+    ).first()
+    
+    if not content:
+        raise HTTPException(status_code=404, detail="Content not found")
+    
+    content.content = request.content
+    db.commit()
+    db.refresh(content)
+    
+    return {
+        "success": True,
+        "message": "Content updated successfully",
+        "content_id": content.id,
+        "content_type": content.content_type
+    }
+
+
+@router.get("/campaigns/{campaign_id}/contents")
+async def get_campaign_contents(campaign_id: int, db: Session = Depends(get_db)):
+    """Get all contents for a campaign with editing capability."""
+    campaign = db.query(Campaign).filter(Campaign.id == campaign_id).first()
+    if not campaign:
+        raise HTTPException(status_code=404, detail="Campaign not found")
+    
+    contents = db.query(GeneratedContent).filter(
+        GeneratedContent.campaign_id == campaign_id
+    ).all()
+    
+    return {
+        "campaign_id": campaign_id,
+        "campaign_name": campaign.exhibition_name,
+        "industry": campaign.customer_industry,
+        "contents": [
+            {
+                "id": c.id,
+                "content_type": c.content_type,
+                "content": c.content,
+                "created_at": c.created_at.isoformat() if c.created_at else None
+            }
+            for c in contents
+        ]
+    }
+
+
+# ==================== Content Templates Endpoints ====================
+
+@router.get("/templates")
+async def list_templates(
+    platform: Optional[str] = None,
+    template_type: Optional[str] = None,
+    db: Session = Depends(get_db)
+):
+    """List all content templates."""
+    from app.models.models import ContentTemplate
+    
+    query = db.query(ContentTemplate).filter(ContentTemplate.is_active == True)
+    
+    if platform:
+        query = query.filter(ContentTemplate.platform.in_([platform, "all"]))
+    if template_type:
+        query = query.filter(ContentTemplate.template_type == template_type)
+    
+    templates = query.all()
+    
+    return [
+        {
+            "id": t.id,
+            "name": t.name,
+            "template_type": t.template_type,
+            "platform": t.platform,
+            "prompt_template": t.prompt_template
+        }
+        for t in templates
+    ]
+
+
+@router.post("/templates")
+async def create_template(
+    request: ContentTemplateCreate,
+    db: Session = Depends(get_db)
+):
+    """Create a new content template."""
+    from app.models.models import ContentTemplate
+    
+    db_template = ContentTemplate(
+        name=request.name,
+        template_type=request.template_type,
+        platform=request.platform,
+        prompt_template=request.prompt_template,
+        is_active=True
+    )
+    db.add(db_template)
+    db.commit()
+    db.refresh(db_template)
+    
+    return {
+        "success": True,
+        "message": "Template created successfully",
+        "template_id": db_template.id
+    }
+
+
+@router.post("/templates/init")
+async def init_default_templates(db: Session = Depends(get_db)):
+    """Initialize default content templates."""
+    from app.models.models import ContentTemplate
+    
+    # Check if templates already exist
+    existing = db.query(ContentTemplate).first()
+    if existing:
+        return {"success": True, "message": "Templates already initialized"}
+    
+    # Default templates
+    default_templates = [
+        # Professional Templates
+        {
+            "name": "Professional LinkedIn",
+            "template_type": "professional",
+            "platform": "linkedin",
+            "prompt_template": "Write a professional LinkedIn post about {industry} exhibition booth design for {exhibition}. Include industry-specific terminology, professional tone, and relevant hashtags."
+        },
+        {
+            "name": "Professional Facebook",
+            "template_type": "professional",
+            "platform": "facebook",
+            "prompt_template": "Write a professional Facebook post announcing our {industry} exhibition booth at {exhibition}. Professional tone with moderate emojis."
+        },
+        {
+            "name": "Professional Google",
+            "template_type": "professional",
+            "platform": "google_business",
+            "prompt_template": "Write a concise Google Business Profile post about our exhibition presence at {exhibition} for the {industry} industry. SEO optimized, local business style."
+        },
+        
+        # Casual Templates
+        {
+            "name": "Casual LinkedIn",
+            "template_type": "casual",
+            "platform": "linkedin",
+            "prompt_template": "Write a casual, friendly LinkedIn post about our exciting {industry} exhibition booth at {exhibition}. Conversational tone, personal approach."
+        },
+        {
+            "name": "Casual Facebook",
+            "template_type": "casual",
+            "platform": "facebook",
+            "prompt_template": "Write a casual, engaging Facebook post about our booth at {exhibition}. Fun, friendly, community-focused tone with emojis."
+        },
+        {
+            "name": "Casual Google",
+            "template_type": "casual",
+            "platform": "google_business",
+            "prompt_template": "Write a friendly Google Business post about visiting us at {exhibition}! Warm, welcoming tone for local customers."
+        },
+        
+        # Promotional Templates
+        {
+            "name": "Promotional LinkedIn",
+            "template_type": "promotional",
+            "platform": "linkedin",
+            "prompt_template": "Write a promotional LinkedIn post highlighting our {industry} exhibition booth at {exhibition}. Highlight USPs, special offers, and call-to-action."
+        },
+        {
+            "name": "Promotional Facebook",
+            "template_type": "promotional",
+            "platform": "facebook",
+            "prompt_template": "Write a promotional Facebook post with special exhibition offer for {exhibition}. Exciting, urgent tone with discount mentions."
+        },
+        {
+            "name": "Promotional Google",
+            "template_type": "promotional",
+            "platform": "google_business",
+            "prompt_template": "Write a promotional Google Business post about our exhibition special at {exhibition}. Clear offer, urgency, local SEO optimized."
+        },
+    ]
+    
+    for t in default_templates:
+        db_template = ContentTemplate(**t)
+        db.add(db_template)
+    
+    db.commit()
+    
+    return {
+        "success": True,
+        "message": f"Initialized {len(default_templates)} default templates"
+    }
+
+
+# ==================== Workflow Endpoints ====================
+
+@router.get("/workflow/campaign/{campaign_id}")
+async def get_campaign_workflow(campaign_id: int, db: Session = Depends(get_db)):
+    """Get the complete workflow status for a campaign."""
+    campaign = db.query(Campaign).filter(Campaign.id == campaign_id).first()
+    if not campaign:
+        raise HTTPException(status_code=404, detail="Campaign not found")
+    
+    # Get all contents
+    contents = db.query(GeneratedContent).filter(
+        GeneratedContent.campaign_id == campaign_id
+    ).all()
+    
+    # Get all scheduled/published posts for this campaign
+    posts = db.query(ScheduledPost).filter(
+        ScheduledPost.campaign_id == campaign_id
+    ).all()
+    
+    return {
+        "campaign": {
+            "id": campaign.id,
+            "industry": campaign.customer_industry,
+            "exhibition": campaign.exhibition_name,
+            "created_at": campaign.created_at.isoformat() if campaign.created_at else None
+        },
+        "contents": {
+            "total": len(contents),
+            "items": [
+                {
+                    "id": c.id,
+                    "type": c.content_type,
+                    "length": len(c.content),
+                    "created_at": c.created_at.isoformat() if c.created_at else None
+                }
+                for c in contents
+            ]
+        },
+        "scheduling": {
+            "total": len(posts),
+            "scheduled": len([p for p in posts if p.status == "scheduled"]),
+            "published": len([p for p in posts if p.status == "published"]),
+            "failed": len([p for p in posts if p.status == "failed"])
+        },
+        "workflow_status": _calculate_workflow_status(contents, posts)
+    }
+
+
+def _calculate_workflow_status(contents, posts):
+    """Calculate the workflow status."""
+    if not contents:
+        return "draft"
+    if posts:
+        published = [p for p in posts if p.status == "published"]
+        scheduled = [p for p in posts if p.status == "scheduled"]
+        if published:
+            return "completed"
+        elif scheduled:
+            return "scheduled"
+    return "generated"

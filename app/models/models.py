@@ -28,6 +28,7 @@ class SocialAccount(Base):
     refresh_token = Column(Text, nullable=True)
     token_expires_at = Column(DateTime, nullable=True)
     is_active = Column(Boolean, default=True)
+    is_mock_mode = Column(Boolean, default=False)  # Enable mock posting mode
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -61,10 +62,24 @@ class ScheduledPost(Base):
     platform = Column(String(50), nullable=False)  # linkedin, facebook, google_business
     social_account_id = Column(Integer, nullable=True)
     content = Column(Text, nullable=False)
-    scheduled_at = Column(DateTime, nullable=False)
+    scheduled_at = Column(DateTime, nullable=True)  # Can be null for immediate posts
     published_at = Column(DateTime, nullable=True)
     status = Column(String(20), default="scheduled")  # draft, scheduled, published, failed
     platform_post_id = Column(String(200), nullable=True)  # ID from the platform after publishing
     error_message = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class ContentTemplate(Base):
+    """Content templates for different marketing styles."""
+    __tablename__ = "content_templates"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String(100), nullable=False)  # Template name
+    template_type = Column(String(50), nullable=False)  # professional, casual, promotional
+    platform = Column(String(50), nullable=False)  # linkedin, facebook, google_business
+    prompt_template = Column(Text, nullable=False)  # Template prompt for content generation
+    is_active = Column(Boolean, default=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)

@@ -52,6 +52,7 @@ class SocialAccountCreate(BaseModel):
     access_token: Optional[str] = None
     refresh_token: Optional[str] = None
     token_expires_at: Optional[datetime] = None
+    is_mock_mode: bool = False  # Enable mock posting mode
 
 
 class SocialAccountResponse(BaseModel):
@@ -60,6 +61,7 @@ class SocialAccountResponse(BaseModel):
     account_name: str
     account_id: Optional[str]
     is_active: bool
+    is_mock_mode: bool
     created_at: datetime
     updated_at: datetime
 
@@ -98,4 +100,30 @@ class ScheduledPostResponse(BaseModel):
 class PublishNowRequest(BaseModel):
     platform: str
     social_account_id: Optional[int] = None
+    content: str
+
+
+# Content Template Schemas
+class ContentTemplateCreate(BaseModel):
+    name: str
+    template_type: str  # professional, casual, promotional
+    platform: str  # linkedin, facebook, google_business, all
+    prompt_template: str
+
+
+class ContentTemplateResponse(BaseModel):
+    id: int
+    name: str
+    template_type: str
+    platform: str
+    prompt_template: str
+    is_active: bool
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+# Content Edit Schema
+class ContentUpdateRequest(BaseModel):
     content: str
