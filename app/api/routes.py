@@ -1457,6 +1457,34 @@ async def delete_social_account(account_id: int, db: Session = Depends(get_db)):
     return {"success": True, "message": "Account deleted"}
 
 
+@router.post("/settings/api-keys")
+async def save_api_key(request: Request, db: Session = Depends(get_db)):
+    """Save AI API key for a service."""
+    user_id = request.session.get("user_id")
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    
+    from pydantic import BaseModel
+    
+    class ApiKeyRequest(BaseModel):
+        service: str
+        api_key: str
+    
+    data = await request.json()
+    
+    # Store in environment variable (in production, use secure storage)
+    import os
+    service = data.get("service")
+    api_key = data.get("api_key")
+    
+    if service == "openai":
+        os.environ["OPENAI_API_KEY"] = api_key
+    elif service == "deepseek":
+        os.environ["DEEPSEEK_API_KEY"] = api_key
+    
+    return {"success": True, "message": f"{service} API key saved"}
+
+
 @router.get("/settings/platforms-status")
 async def get_platforms_status():
     """Get the configuration status of all platforms."""

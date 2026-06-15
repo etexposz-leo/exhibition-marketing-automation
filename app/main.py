@@ -100,6 +100,14 @@ async def history_page(request: Request):
     return FileResponse(str(BASE_DIR / "templates" / "history.html"))
 
 
+@app.get("/dashboard")
+async def dashboard_page(request: Request):
+    """Dashboard page - requires authentication."""
+    if not request.session.get("user_id"):
+        return RedirectResponse(url="/login")
+    return FileResponse(str(BASE_DIR / "templates" / "dashboard.html"))
+
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run("app.main:app", host="0.0.0.0", port=8000, reload=True)
