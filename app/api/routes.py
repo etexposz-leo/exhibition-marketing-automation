@@ -972,25 +972,496 @@ async def publish_to_single_platform(
         raise HTTPException(status_code=400, detail=str(e))
 
 
-@router.get("/platforms/{platform}/validate")
-async def validate_content_for_platform(
-    platform: str,
-    content: str
-):
-    """Validate content for a specific platform's requirements."""
-    from app.services.platform_adapter import get_platform_adapter
+# ==================== Content Optimization Endpoints ====================
+
+@router.post("/optimize")
+async def optimize_content(request: dict):
+    """
+    Optimize content for multiple platforms.
     
-    try:
-        adapter = get_platform_adapter(platform)
-        is_valid, error = adapter.validate_content(content)
-        
-        return {
-            "valid": is_valid,
-            "error": error,
-            "platform": platform,
-            "character_count": len(content),
-            "character_limit": adapter.config.character_limit,
-            "remaining": adapter.config.character_limit - len(content)
+    Returns platform-specific optimized versions of the content.
+    """
+    from app.services.content_optimizer import content_optimizer
+    
+    content = request.get("content", "")
+    platforms = request.get("platforms", [])
+    industry = request.get("industry", "")
+    
+    if not content:
+        raise HTTPException(status_code=400, detail="Content is required")
+    if not platforms:
+        raise HTTPException(status_code=400, detail="At least one platform is required")
+    
+    results = content_optimizer.optimize_batch(content, platforms, industry)
+    
+    return {
+        "original": content,
+        "industry": industry,
+        "optimizations": {
+            platform: {
+                "optimized": r.optimized,
+                "changes": r.changes,
+                "warnings": r.warnings,
+                "character_count": r.character_count,
+                "character_limit": r.character_limit,
+                "remaining": r.character_limit - r.character_count
+            }
+            for platform, r in results.items()
         }
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+    }
+
+
+@router.post("/campaigns/{campaign_id}/optimize")
+async def optimize_campaign_content(
+    campaign_id: int,
+    request: dict,
+    db: Session = Depends(get_db)
+):
+    """Optimize and save campaign content for specified platforms."""
+    from app.services.content_optimizer import content_optimizer
+    from app.models.models import Campaign, GeneratedContent, OptimizedContent
+    import json
+    
+    platforms = request.get("platforms", [])
+    
+    if not platforms:
+        raise HTTPException(status_code=400, detail="At least one platform is required")
+    
+    campaign = db.query(Campaign).filter(Campaign.id == campaign_id).first()
+    if not campaign:
+        raise HTTPException(status_code=404, detail="Campaign not found")
+    
+    # Get or create base content
+    base_content = db.query(GeneratedContent).filter(
+        GeneratedContent.campaign_id == campaign_id,
+        GeneratedContent.content_type == "linkedin"  # Use LinkedIn as base
+    ).first()
+    
+    if not base_content:
+        raise HTTPException(status_code=400, detail="No base content found. Generate content first.")
+    
+    # Optimize for each platform
+    results = content_optimizer.optimize_batch(
+        base_content.content,
+        platforms,
+        campaign.customer_industry
+    )
+    
+    # Save optimized content
+    optimized_ids = {}
+    for platform, result in results.items():
+        # Check if already exists
+        existing = db.query(OptimizedContent).filter(
+            OptimizedContent.campaign_id == campaign_id,
+            OptimizedContent.platform == platform
+        ).first()
+        
+        if existing:
+            existing.optimized_content = result.optimized
+            existing.changes = json.dumps(result.changes)
+            existing.warnings = json.dumps(result.warnings)
+            existing.character_count = result.character_count
+            existing.character_limit = result.character_limit
+            optimized_ids[platform] = existing.id
+        else:
+            new_optimized = OptimizedContent(
+                campaign_id=campaign_id,
+                content_id=base_content.id,
+                platform=platform,
+                original_content=result.original,
+                optimized_content=result.optimized,
+                changes=json.dumps(result.changes),
+                warnings=json.dumps(result.warnings),
+                character_count=result.character_count,
+                character_limit=result.character_limit
+            )
+            db.add(new_optimized)
+            db.flush()
+            optimized_ids[platform] = new_optimized.id
+    
+    # Update campaign status
+    campaign.status = "optimized"
+    campaign.selected_platforms = json.dumps(platforms)
+    
+    db.commit()
+    
+    return {
+        "success": True,
+        "campaign_id": campaign_id,
+        "platforms": platforms,
+        "optimized_count": len(optimized_ids),
+        "optimizations": {
+            platform: {
+                "id": opt_id,
+                "optimized": results[platform].optimized,
+                "changes": results[platform].changes
+            }
+            for platform, opt_id in optimized_ids.items()
+        }
+    }
+
+
+@router.get("/campaigns/{campaign_id}/optimized")
+async def get_campaign_optimized_content(campaign_id: int, db: Session = Depends(get_db)):
+    """Get all optimized content for a campaign."""
+    from app.models.models import Campaign, OptimizedContent
+    import json
+    
+    campaign = db.query(Campaign).filter(Campaign.id == campaign_id).first()
+    if not campaign:
+        raise HTTPException(status_code=404, detail="Campaign not found")
+    
+    optimized_contents = db.query(OptimizedContent).filter(
+        OptimizedContent.campaign_id == campaign_id
+    ).all()
+    
+    return {
+        "campaign_id": campaign_id,
+        "campaign_name": campaign.exhibition_name,
+        "industry": campaign.customer_industry,
+        "status": campaign.status,
+        "selected_platforms": json.loads(campaign.selected_platforms) if campaign.selected_platforms else [],
+        "optimized_contents": [
+            {
+                "id": oc.id,
+                "platform": oc.platform,
+                "original": oc.original_content,
+                "optimized": oc.optimized_content,
+                "changes": json.loads(oc.changes) if oc.changes else [],
+                "warnings": json.loads(oc.warnings) if oc.warnings else [],
+                "character_count": oc.character_count,
+                "character_limit": oc.character_limit
+            }
+            for oc in optimized_contents
+        ]
+    }
+
+
+# ==================== Preview and Publish Endpoints ====================
+
+@router.post("/campaigns/{campaign_id}/preview")
+async def preview_publish(
+    campaign_id: int,
+    request: dict,
+    db: Session = Depends(get_db)
+):
+    """
+    Preview what will be published to each platform.
+    Does not publish, just returns the optimized content.
+    """
+    from app.services.content_optimizer import content_optimizer
+    from app.models.models import Campaign, GeneratedContent, OptimizedContent
+    import json
+    
+    platforms = request.get("platforms", [])
+    
+    if not platforms:
+        raise HTTPException(status_code=400, detail="At least one platform is required")
+    
+    campaign = db.query(Campaign).filter(Campaign.id == campaign_id).first()
+    if not campaign:
+        raise HTTPException(status_code=404, detail="Campaign not found")
+    
+    # Get base content
+    base_content = db.query(GeneratedContent).filter(
+        GeneratedContent.campaign_id == campaign_id,
+        GeneratedContent.content_type == "linkedin"
+    ).first()
+    
+    if not base_content:
+        raise HTTPException(status_code=400, detail="No content found")
+    
+    # Check for existing optimized content
+    existing_optimized = db.query(OptimizedContent).filter(
+        OptimizedContent.campaign_id == campaign_id
+    ).all()
+    existing_map = {oc.platform: oc for oc in existing_optimized}
+    
+    # Get or generate optimized content
+    previews = []
+    for platform in platforms:
+        if platform in existing_map:
+            oc = existing_map[platform]
+            previews.append({
+                "platform": platform,
+                "content": oc.optimized_content,
+                "is_existing": True,
+                "character_count": oc.character_count,
+                "character_limit": oc.character_limit
+            })
+        else:
+            result = content_optimizer.optimize(
+                base_content.content, platform, campaign.customer_industry
+            )
+            previews.append({
+                "platform": platform,
+                "content": result.optimized,
+                "is_existing": False,
+                "character_count": result.character_count,
+                "character_limit": result.character_limit,
+                "changes": result.changes,
+                "warnings": result.warnings
+            })
+    
+    return {
+        "campaign_id": campaign_id,
+        "campaign_name": campaign.exhibition_name,
+        "industry": campaign.customer_industry,
+        "preview_count": len(previews),
+        "previews": previews
+    }
+
+
+@router.post("/campaigns/{campaign_id}/publish")
+async def publish_campaign(
+    campaign_id: int,
+    request: dict,
+    db: Session = Depends(get_db)
+):
+    """
+    Publish campaign content to specified platforms.
+    
+    If publish_now is True, publishes immediately.
+    Otherwise, schedules for the specified time.
+    """
+    from app.models.models import Campaign, OptimizedContent, ScheduledPost
+    from datetime import datetime
+    import json
+    
+    platforms = request.get("platforms", [])
+    publish_now = request.get("publish_now", True)
+    scheduled_at = request.get("scheduled_at")
+    
+    if not platforms:
+        raise HTTPException(status_code=400, detail="At least one platform is required")
+    
+    campaign = db.query(Campaign).filter(Campaign.id == campaign_id).first()
+    if not campaign:
+        raise HTTPException(status_code=404, detail="Campaign not found")
+    
+    # Get optimized content
+    optimized_contents = db.query(OptimizedContent).filter(
+        OptimizedContent.campaign_id == campaign_id
+    ).all()
+    optimized_map = {oc.platform: oc for oc in optimized_contents}
+    
+    results = []
+    for platform in platforms:
+        if platform not in optimized_map:
+            results.append({
+                "platform": platform,
+                "success": False,
+                "error": "No optimized content found. Run optimization first."
+            })
+            continue
+        
+        oc = optimized_map[platform]
+        
+        # Create scheduled post entry
+        post = ScheduledPost(
+            campaign_id=campaign_id,
+            optimized_content_id=oc.id,
+            platform=platform,
+            content=oc.optimized_content,
+            status="draft",
+            created_at=datetime.utcnow()
+        )
+        db.add(post)
+        db.flush()
+        
+        if publish_now:
+            # Publish immediately - use sync version
+            from app.services.platform_adapter import get_platform_adapter
+            
+            try:
+                adapter = get_platform_adapter(post.platform)
+                result = adapter.publish_sync(post.content)
+                
+                post.status = "published" if result.success else "failed"
+                post.published_at = datetime.utcnow() if result.success else None
+                post.platform_post_id = result.post_id
+                post.url = result.url
+                post.is_mock = result.is_mock
+                post.error_message = result.error if not result.success else None
+                
+                results.append({
+                    "platform": platform,
+                    "success": result.success,
+                    "post_id": post.id,
+                    "status": post.status,
+                    "platform_post_id": result.post_id,
+                    "url": result.url,
+                    "is_mock": result.is_mock,
+                    "error": result.error if not result.success else None
+                })
+            except Exception as e:
+                post.status = "failed"
+                post.error_message = str(e)
+                results.append({
+                    "platform": platform,
+                    "success": False,
+                    "post_id": post.id,
+                    "status": "failed",
+                    "error": str(e)
+                })
+        else:
+            # Schedule for later
+            if scheduled_at:
+                sched_time = datetime.fromisoformat(scheduled_at.replace('Z', '+00:00'))
+            else:
+                # Default to 1 hour from now
+                sched_time = datetime.utcnow() + timedelta(hours=1)
+            
+            from app.services.scheduler_service import scheduler_service
+            success = scheduler_service.schedule_post(post.id, sched_time)
+            
+            results.append({
+                "platform": platform,
+                "success": success,
+                "post_id": post.id,
+                "status": "scheduled" if success else "draft",
+                "scheduled_at": sched_time.isoformat() if success else None
+            })
+    
+    # Update campaign status
+    campaign.status = "publishing" if publish_now else "scheduled"
+    db.commit()
+    
+    return {
+        "campaign_id": campaign_id,
+        "publish_mode": "immediate" if publish_now else "scheduled",
+        "total": len(platforms),
+        "successful": sum(1 for r in results if r.get("success")),
+        "results": results
+    }
+
+
+# ==================== Settings Endpoints ====================
+
+@router.get("/settings/social-accounts")
+async def get_social_accounts(db: Session = Depends(get_db)):
+    """Get all social media account configurations."""
+    from app.models.models import SocialAccount
+    
+    accounts = db.query(SocialAccount).all()
+    
+    return {
+        "accounts": [
+            {
+                "id": acc.id,
+                "platform": acc.platform,
+                "account_name": acc.account_name,
+                "account_id": acc.account_id,
+                "is_active": acc.is_active,
+                "is_mock_mode": acc.is_mock_mode,
+                "has_token": bool(acc.access_token),
+                "has_api_key": bool(acc.api_key),
+                "created_at": acc.created_at.isoformat() if acc.created_at else None
+            }
+            for acc in accounts
+        ]
+    }
+
+
+@router.post("/settings/social-accounts")
+async def save_social_account(
+    request: dict,
+    db: Session = Depends(get_db)
+):
+    """Save or update a social media account configuration."""
+    from app.models.models import SocialAccount
+    from datetime import datetime
+    
+    platform = request.get("platform")
+    account_name = request.get("account_name")
+    account_id = request.get("account_id")
+    access_token = request.get("access_token")
+    api_key = request.get("api_key")
+    is_mock_mode = request.get("is_mock_mode", True)
+    
+    if not platform or not account_name:
+        raise HTTPException(status_code=400, detail="Platform and account name are required")
+    
+    existing = db.query(SocialAccount).filter(
+        SocialAccount.platform == platform
+    ).first()
+    
+    if existing:
+        existing.account_name = account_name
+        existing.account_id = account_id
+        if access_token:
+            existing.access_token = access_token
+        if api_key:
+            existing.api_key = api_key
+        existing.is_mock_mode = is_mock_mode
+        existing.updated_at = datetime.utcnow()
+        account = existing
+    else:
+        account = SocialAccount(
+            platform=platform,
+            account_name=account_name,
+            account_id=account_id,
+            access_token=access_token,
+            api_key=api_key,
+            is_mock_mode=is_mock_mode
+        )
+        db.add(account)
+    
+    db.commit()
+    db.refresh(account)
+    
+    return {
+        "success": True,
+        "id": account.id,
+        "platform": account.platform,
+        "is_mock_mode": account.is_mock_mode,
+        "message": "Account saved successfully"
+    }
+
+
+@router.delete("/settings/social-accounts/{account_id}")
+async def delete_social_account(account_id: int, db: Session = Depends(get_db)):
+    """Delete a social media account configuration."""
+    from app.models.models import SocialAccount
+    
+    account = db.query(SocialAccount).filter(SocialAccount.id == account_id).first()
+    if not account:
+        raise HTTPException(status_code=404, detail="Account not found")
+    
+    db.delete(account)
+    db.commit()
+    
+    return {"success": True, "message": "Account deleted"}
+
+
+@router.get("/settings/platforms-status")
+async def get_platforms_status():
+    """Get the configuration status of all platforms."""
+    from app.services.platform_adapter import get_all_platform_configs
+    from app.models.models import SocialAccount
+    from app.core.database import SessionLocal
+    
+    platforms = get_all_platform_configs()
+    db = SessionLocal()
+    
+    accounts = db.query(SocialAccount).all()
+    account_map = {acc.platform: acc for acc in accounts}
+    db.close()
+    
+    status = []
+    for platform in platforms:
+        account = account_map.get(platform["id"])
+        status.append({
+            "id": platform["id"],
+            "name": platform["name"],
+            "icon": platform["icon"],
+            "color": platform["color"],
+            "character_limit": platform["character_limit"],
+            "supports_images": platform["supports_images"],
+            "is_configured": platform["is_configured"] and not platform["is_mock"],
+            "is_mock_mode": platform["is_mock"] or (account.is_mock_mode if account else True),
+            "has_credentials": bool(account.access_token if account else None),
+            "account_name": account.account_name if account else None
+        })
+    
+    return {"platforms": status}

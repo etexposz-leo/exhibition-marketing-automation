@@ -64,7 +64,8 @@ class BasePlatformAdapter(ABC):
     Abstract base class for all social platform adapters.
     
     All platform implementations must follow this interface:
-    - publish(): Publish content to the platform
+    - publish(): Publish content to the platform (async)
+    - publish_sync(): Publish content to the platform (sync)
     - is_configured(): Check if API credentials are available
     - validate_content(): Validate content for platform requirements
     """
@@ -74,7 +75,7 @@ class BasePlatformAdapter(ABC):
     @abstractmethod
     async def publish(self, content: str, **kwargs) -> PublishResult:
         """
-        Publish content to the platform.
+        Publish content to the platform (async).
         
         Args:
             content: The text content to publish
@@ -84,6 +85,25 @@ class BasePlatformAdapter(ABC):
             PublishResult with success status and post details
         """
         pass
+    
+    def publish_sync(self, content: str, **kwargs) -> PublishResult:
+        """
+        Synchronous publish - for scheduler use.
+        Default implementation wraps async publish.
+        """
+        import asyncio
+        
+        try:
+            loop = asyncio.get_event_loop()
+            if loop.is_running():
+                # Create a new loop if we're in an async context
+                result = loop.run_until_complete(self.publish(content, **kwargs))
+            else:
+                result = loop.run_until_complete(self.publish(content, **kwargs))
+            return result
+        except RuntimeError:
+            # No event loop, create one
+            return asyncio.run(self.publish(content, **kwargs))
     
     @abstractmethod
     def is_configured(self) -> bool:
@@ -170,7 +190,15 @@ class MockPlatformAdapter(BasePlatformAdapter):
         return limits.get(p, 1000)
     
     async def publish(self, content: str, **kwargs) -> PublishResult:
-        """Simulate publishing to the platform."""
+        """Simulate publishing to the platform (async version)."""
+        return self._do_publish(content, **kwargs)
+    
+    def publish_sync(self, content: str, **kwargs) -> PublishResult:
+        """Simulate publishing to the platform (sync version - same logic)."""
+        return self._do_publish(content, **kwargs)
+    
+    def _do_publish(self, content: str, **kwargs) -> PublishResult:
+        """Common publish logic for both sync and async."""
         is_valid, error = self.validate_content(content)
         if not is_valid:
             return PublishResult(
