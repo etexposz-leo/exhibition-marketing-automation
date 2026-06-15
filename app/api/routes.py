@@ -436,13 +436,13 @@ async def list_scheduled_posts(
     if status:
         query = query.filter(ScheduledPost.status == status)
     
-    posts = query.order_by(ScheduledPost.scheduled_at.asc()).all()
+    posts = query.order_by(ScheduledPost.created_at.desc()).all()
     
     return [
         ScheduledPostResponse(
             id=p.id,
             campaign_id=p.campaign_id,
-            content_id=p.content_id,
+            content_id=p.optimized_content_id,
             platform=p.platform,
             social_account_id=p.social_account_id,
             content=p.content,

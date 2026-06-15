@@ -76,7 +76,7 @@ class SchedulePostRequest(BaseModel):
     platform: str  # linkedin, facebook, google_business
     social_account_id: Optional[int] = None
     content: str
-    scheduled_at: datetime
+    scheduled_at: Optional[datetime] = None
 
 
 class ScheduledPostResponse(BaseModel):
@@ -86,7 +86,7 @@ class ScheduledPostResponse(BaseModel):
     platform: str
     social_account_id: Optional[int]
     content: str
-    scheduled_at: datetime
+    scheduled_at: Optional[datetime]
     published_at: Optional[datetime]
     status: str
     platform_post_id: Optional[str]
