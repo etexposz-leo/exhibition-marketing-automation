@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 from typing import Optional
@@ -7,6 +7,7 @@ import csv
 import io
 
 from app.core.database import get_db
+from app.core.dependencies import get_current_user
 from app.models.models import Campaign, GeneratedContent, SocialAccount, ScheduledPost
 from app.schemas.schemas import (
     CampaignCreate,
@@ -30,10 +31,16 @@ router = APIRouter()
 
 # ==================== Campaign Endpoints ====================
 
+
 @router.post("/campaigns", response_model=CampaignResponse)
-async def create_campaign(campaign: CampaignCreate, db: Session = Depends(get_db)):
+async def create_campaign(campaign: CampaignCreate, request: Request, db: Session = Depends(get_db)):
     """Create a new marketing campaign."""
+    user_id = request.session.get("user_id")
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    
     db_campaign = Campaign(
+        user_id=user_id,
         customer_industry=campaign.customer_industry,
         exhibition_name=campaign.exhibition_name
     )
@@ -52,9 +59,15 @@ async def create_campaign(campaign: CampaignCreate, db: Session = Depends(get_db
 
 
 @router.get("/campaigns", response_model=list[CampaignResponse])
-async def list_campaigns(skip: int = 0, limit: int = 20, db: Session = Depends(get_db)):
-    """List all campaigns with their generated content."""
-    campaigns = db.query(Campaign).order_by(Campaign.created_at.desc()).offset(skip).limit(limit).all()
+async def list_campaigns(request: Request, skip: int = 0, limit: int = 20, db: Session = Depends(get_db)):
+    """List all campaigns with their generated content for current user."""
+    user_id = request.session.get("user_id")
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    
+    campaigns = db.query(Campaign).filter(
+        Campaign.user_id == user_id
+    ).order_by(Campaign.created_at.desc()).offset(skip).limit(limit).all()
     
     result = []
     for campaign in campaigns:
@@ -186,7 +199,8 @@ async def export_campaign_csv(campaign_id: int, db: Session = Depends(get_db)):
 
 @router.post("/generate", response_model=GenerationResponse)
 async def generate_content(
-    request: GenerationRequest,
+    request: Request,
+    gen_request: GenerationRequest,
     db: Session = Depends(get_db),
     use_ai: bool = Query(True, description="Use AI generation when available"),
     provider: str = Query("auto", description="AI provider: 'openai', 'deepseek', or 'auto'")
@@ -200,10 +214,15 @@ async def generate_content(
     - Google Business Profile post
     - Image prompts for AI generation
     """
+    user_id = request.session.get("user_id")
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    
     # Create the campaign
     db_campaign = Campaign(
-        customer_industry=request.customer_industry,
-        exhibition_name=request.exhibition_name
+        user_id=user_id,
+        customer_industry=gen_request.customer_industry,
+        exhibition_name=gen_request.exhibition_name
     )
     db.add(db_campaign)
     db.commit()
@@ -219,35 +238,35 @@ async def generate_content(
     if use_ai:
         try:
             linkedin_post = await ai_service.generate_linkedin_post(
-                request.customer_industry,
-                request.exhibition_name,
+                gen_request.customer_industry,
+                gen_request.exhibition_name,
                 provider
             )
             facebook_post = await ai_service.generate_facebook_post(
-                request.customer_industry,
-                request.exhibition_name,
+                gen_request.customer_industry,
+                gen_request.exhibition_name,
                 provider
             )
             google_post = await ai_service.generate_google_business_post(
-                request.customer_industry,
-                request.exhibition_name,
+                gen_request.customer_industry,
+                gen_request.exhibition_name,
                 provider
             )
             image_prompts = await ai_service.generate_image_prompts(
-                request.customer_industry,
-                request.exhibition_name,
+                gen_request.customer_industry,
+                gen_request.exhibition_name,
                 provider
             )
         except Exception as e:
             # Fallback to template-based generation on error
-            content = generate_all_content(request.customer_industry, request.exhibition_name)
+            content = generate_all_content(gen_request.customer_industry, gen_request.exhibition_name)
             linkedin_post = content["linkedin_post"]
             facebook_post = content["facebook_post"]
             google_post = content["google_business_post"]
             image_prompts = content["image_prompts"]
     else:
         # Use template-based generation
-        content = generate_all_content(request.customer_industry, request.exhibition_name)
+        content = generate_all_content(gen_request.customer_industry, gen_request.exhibition_name)
         linkedin_post = content["linkedin_post"]
         facebook_post = content["facebook_post"]
         google_post = content["google_business_post"]
@@ -263,6 +282,7 @@ async def generate_content(
     
     for content_type, content_text in content_types:
         db_content = GeneratedContent(
+            user_id=user_id,
             campaign_id=db_campaign.id,
             content_type=content_type,
             content=content_text
@@ -373,9 +393,12 @@ async def get_social_account(account_id: int, db: Session = Depends(get_db)):
 
 
 @router.delete("/social-accounts/{account_id}")
-async def delete_social_account(account_id: int, db: Session = Depends(get_db)):
+async def delete_social_account(account_id: int, request: Request, db: Session = Depends(get_db)):
     """Delete a social media account."""
-    account = db.query(SocialAccount).filter(SocialAccount.id == account_id).first()
+    user_id = request.session.get("user_id")
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    account = db.query(SocialAccount).filter(SocialAccount.id == account_id, SocialAccount.user_id == user_id).first()
     if not account:
         raise HTTPException(status_code=404, detail="Social account not found")
     

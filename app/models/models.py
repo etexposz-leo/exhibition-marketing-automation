@@ -29,10 +29,26 @@ class CampaignStatus(enum.Enum):
     FAILED = "failed"
 
 
+class User(Base):
+    """User account for authentication."""
+    __tablename__ = "users"
+
+    id = Column(Integer, primary_key=True, index=True)
+    email = Column(String(255), unique=True, nullable=False, index=True)
+    username = Column(String(100), nullable=False)
+    hashed_password = Column(String(255), nullable=False)
+    company_name = Column(String(200), nullable=True)  # Company name
+    is_active = Column(Boolean, default=True)
+    is_demo = Column(Boolean, default=False)  # Demo account flag
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
 class SocialAccount(Base):
     __tablename__ = "social_accounts"
 
     id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, nullable=False, index=True)  # User who owns this account
     platform = Column(String(50), nullable=False)  # linkedin, facebook, instagram, x, google_business
     account_name = Column(String(200), nullable=False)
     account_id = Column(String(200), nullable=True)  # Platform-specific ID
@@ -50,6 +66,7 @@ class Campaign(Base):
     __tablename__ = "campaigns"
 
     id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, nullable=False, index=True)  # User who owns this campaign
     customer_industry = Column(String(200), nullable=False)
     exhibition_name = Column(String(300), nullable=False)
     campaign_name = Column(String(300), nullable=True)  # Optional campaign name
@@ -63,6 +80,7 @@ class GeneratedContent(Base):
     __tablename__ = "generated_contents"
 
     id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, nullable=False, index=True)  # User who owns this content
     campaign_id = Column(Integer, nullable=False)
     content_type = Column(String(50), nullable=False)  # linkedin, facebook, instagram, x, google_business, image_prompt
     content = Column(Text, nullable=False)
@@ -76,6 +94,7 @@ class OptimizedContent(Base):
     __tablename__ = "optimized_contents"
 
     id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, nullable=False, index=True)  # User who owns this content
     campaign_id = Column(Integer, nullable=False)
     content_id = Column(Integer, nullable=True)  # Reference to original GeneratedContent
     platform = Column(String(50), nullable=False)
@@ -92,6 +111,7 @@ class ScheduledPost(Base):
     __tablename__ = "scheduled_posts"
 
     id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, nullable=False, index=True)  # User who owns this post
     campaign_id = Column(Integer, nullable=True)
     optimized_content_id = Column(Integer, nullable=True)  # Reference to OptimizedContent
     platform = Column(String(50), nullable=False)  # linkedin, facebook, instagram, x, google_business

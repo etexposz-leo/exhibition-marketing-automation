@@ -29,6 +29,12 @@ body {
 
 /* Header */
 .header { text-align: center; padding: 1.5rem 0; border-bottom: 1px solid var(--surface-light); margin-bottom: 1.5rem; }
+.user-bar { display: flex; justify-content: flex-end; align-items: center; gap: 1rem; margin-bottom: 1rem; }
+.user-info { display: flex; flex-direction: column; align-items: flex-end; gap: 0.25rem; }
+.user-email { font-size: 0.85rem; font-weight: 500; color: var(--text-secondary); }
+.user-company { font-size: 0.75rem; color: var(--text-secondary); opacity: 0.7; }
+.logout-btn { display: flex; align-items: center; gap: 0.4rem; padding: 0.4rem 0.8rem; background: transparent; border: 1px solid var(--surface-light); border-radius: 8px; color: var(--text-secondary); font-size: 0.8rem; cursor: pointer; transition: all 0.2s; }
+.logout-btn:hover { background: var(--surface); color: var(--text); }
 .logo { display: flex; align-items: center; justify-content: center; gap: 0.75rem; margin-bottom: 0.5rem; }
 .logo-icon { width: 36px; height: 36px; color: var(--primary); }
 .header h1 { font-size: 1.75rem; background: linear-gradient(135deg, var(--primary), #818cf8); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
