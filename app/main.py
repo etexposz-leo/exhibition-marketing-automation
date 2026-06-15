@@ -3,7 +3,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, RedirectResponse
 from pathlib import Path
 from contextlib import asynccontextmanager
-import uuid
+import os
 
 from app.api.routes import router as api_router
 from app.api.auth_routes import router as auth_router
@@ -17,31 +17,33 @@ from starlette.middleware.sessions import SessionMiddleware
 async def lifespan(app: FastAPI):
     # Startup
     await start_scheduler()
-    
+
     # Create demo account
     db = SessionLocal()
     try:
         create_demo_account(db)
     finally:
         db.close()
-    
+
     yield
     # Shutdown
     await stop_scheduler()
 
 
 app = FastAPI(
-    title="Exhibition Marketing Automation", 
+    title="Exhibition Marketing Automation",
     version="2.0.0",
     lifespan=lifespan
 )
 
 # Add session middleware
+SESSION_SECRET = os.environ.get("SECRET_KEY", "dev-secret-key-change-in-production")
 app.add_middleware(
     SessionMiddleware,
-    secret_key=str(uuid.uuid4()),  # Use a fixed key for development
+    secret_key=SESSION_SECRET,
     max_age=86400,  # 24 hours
-    same_site="lax"
+    same_site="lax",
+    https_only=False  # Set to True in production with HTTPS
 )
 
 # Create database tables
@@ -55,21 +57,13 @@ app.mount("/static", StaticFiles(directory=str(BASE_DIR / "static")), name="stat
 app.include_router(api_router, prefix="/api")
 app.include_router(auth_router, prefix="/api")
 
-
+# Serve main page
 @app.get("/")
 async def root(request: Request):
-    """Root page - redirect to index or login based on session."""
-    if request.session.get("user_id"):
-        return FileResponse(str(BASE_DIR / "templates" / "index.html"))
-    return RedirectResponse(url="/login")
-
-
-@app.get("/index.html")
-async def index(request: Request):
-    """Index page - redirect to login if not authenticated."""
-    if request.session.get("user_id"):
-        return FileResponse(str(BASE_DIR / "templates" / "index.html"))
-    return RedirectResponse(url="/login")
+    """Main page - requires authentication."""
+    if not request.session.get("user_id"):
+        return RedirectResponse(url="/login")
+    return FileResponse(str(BASE_DIR / "templates" / "index.html"))
 
 
 @app.get("/login")
@@ -80,7 +74,7 @@ async def login_page():
 
 @app.get("/register")
 async def register_page():
-    """Register page."""
+    """Registration page."""
     return FileResponse(str(BASE_DIR / "templates" / "register.html"))
 
 
@@ -92,14 +86,6 @@ async def settings_page(request: Request):
     return FileResponse(str(BASE_DIR / "templates" / "settings.html"))
 
 
-@app.get("/history")
-async def history_page(request: Request):
-    """History page - requires authentication."""
-    if not request.session.get("user_id"):
-        return RedirectResponse(url="/login")
-    return FileResponse(str(BASE_DIR / "templates" / "history.html"))
-
-
 @app.get("/dashboard")
 async def dashboard_page(request: Request):
     """Dashboard page - requires authentication."""
@@ -108,6 +94,14 @@ async def dashboard_page(request: Request):
     return FileResponse(str(BASE_DIR / "templates" / "dashboard.html"))
 
 
+@app.get("/history")
+async def history_page(request: Request):
+    """History page - requires authentication."""
+    if not request.session.get("user_id"):
+        return RedirectResponse(url="/login")
+    return FileResponse(str(BASE_DIR / "templates" / "history.html"))
+
+
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("app.main:app", host="0.0.0.0", port=8000, reload=True)
+    uvicorn.run(app, host="0.0.0.0", port=8000)

@@ -9,7 +9,7 @@ services:
       - "8000:8000"
     environment:
       - DATABASE_URL=sqlite:///./data/marketing.db
-      - SECRET_KEY=${SECRET_KEY:-change-me-in-production}
+      - SECRET_KEY=${SECRET_KEY:?SECRET_KEY must be set in production}
       - OPENAI_API_KEY=${OPENAI_API_KEY:-}
       - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY:-}
       - LINKEDIN_ACCESS_TOKEN=${LINKEDIN_ACCESS_TOKEN:-}
@@ -21,13 +21,14 @@ services:
       - ./data:/app/data
       - ./logs:/app/logs
     healthcheck:
-      test: ["CMD", "python", "-c", "import httpx; httpx.get('http://localhost:8000/login')"]
+      test: ["CMD", "python", "-c", "import httpx; httpx.get('http://localhost:8000/api/auth/check')"]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 10s
 
   # Optional: Production database (PostgreSQL)
+  # Uncomment and configure for production
   # db:
   #   image: postgres:15-alpine
   #   container_name: exhibition-marketing-db
@@ -35,7 +36,7 @@ services:
   #   environment:
   #     - POSTGRES_DB=marketing
   #     - POSTGRES_USER=marketing
-  #     - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-change-me}
+  #     - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}
   #   volumes:
   #     - postgres_data:/var/lib/postgresql/data
   #   ports:
