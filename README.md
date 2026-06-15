@@ -21,9 +21,27 @@ AI-powered marketing content generation and social media publishing platform for
 
 ## Quick Start
 
+### Option 1: Docker (Recommended)
+
+```bash
+# Copy environment file
+cp .env.example .env
+
+# Start with Docker Compose
+docker-compose up -d
+
+# Open browser
+http://localhost:8000
+```
+
+### Option 2: Local Development
+
 ```bash
 # Install dependencies
 pip install -r requirements.txt
+
+# Run database migrations
+alembic upgrade head
 
 # Run server
 python -m uvicorn app.main:app --host 0.0.0.0 --port 8000
@@ -46,7 +64,8 @@ The demo account comes with sample campaigns and scheduled posts for testing.
 | `/` | Dashboard (requires login) |
 | `/login` | Login page |
 | `/register` | Registration page |
-| `/settings` | Social media account settings |
+| `/dashboard` | Statistics dashboard |
+| `/settings` | API keys and platform settings |
 | `/history` | Publishing history |
 
 ## API Endpoints
@@ -87,46 +106,51 @@ The demo account comes with sample campaigns and scheduled posts for testing.
 |----------|--------|-------------|
 | `/api/settings/platforms-status` | GET | Platform status |
 | `/api/settings/social-accounts` | GET/POST | Manage social accounts |
+| `/api/settings/api-keys` | POST | Save AI API keys |
 
-## Database Models
+## Database Migrations
 
-| Model | Description |
-|-------|-------------|
-| **User** | User accounts with hashed passwords |
-| **Campaign** | Marketing campaigns (user_id linked) |
-| **GeneratedContent** | AI-generated content (user_id linked) |
-| **OptimizedContent** | Platform-optimized content (user_id linked) |
-| **ScheduledPost** | Scheduled posts (user_id linked) |
-| **SocialAccount** | Platform credentials (user_id linked) |
-| **ContentTemplate** | Reusable templates |
+```bash
+# Create new migration
+alembic revision --autogenerate -m "description"
 
-## Data Isolation
+# Apply migrations
+alembic upgrade head
 
-All data is isolated by `user_id`:
-- Users can only view and manage their own campaigns
-- Scheduled posts are scoped to the authenticated user
-- Social account credentials are private to each user
-- API returns 401 for unauthenticated requests
+# Rollback
+alembic downgrade -1
+
+# Show current version
+alembic current
+```
 
 ## Configuration
 
-### Environment Variables (optional)
+### Environment Variables
 ```bash
-# AI Services
+# Application Settings
+SECRET_KEY=your-secret-key
+DATABASE_URL=sqlite:///./data/marketing.db
+
+# AI Services (optional)
 OPENAI_API_KEY=sk-...
 DEEPSEEK_API_KEY=...
 
 # Social Platforms (optional - mock mode works without these)
 LINKEDIN_ACCESS_TOKEN=...
 FACEBOOK_ACCESS_TOKEN=...
+X_BEARER_TOKEN=...
+GOOGLE_BUSINESS_API_KEY=...
 ```
 
 ## Tech Stack
 
 - **Backend**: FastAPI, SQLAlchemy, APScheduler, Starlette Sessions
-- **Database**: SQLite
+- **Database**: SQLite (default), PostgreSQL (production)
+- **Migrations**: Alembic
 - **Frontend**: Vanilla JS, CSS
 - **Auth**: Bcrypt, SessionMiddleware
+- **Container**: Docker, Docker Compose
 
 ## License
 
