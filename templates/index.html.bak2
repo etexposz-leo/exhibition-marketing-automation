@@ -147,37 +147,8 @@
                         <h2>Generated Content</h2>
                         <div class="results-actions">
                             <button class="btn-secondary" id="goToEditBtn">✏️ Edit Content</button>
-                            <button class="btn-secondary" id="exportTxtBtn">📄 Export</button>
+                            <button class="btn-secondary" id="exportTxtBtn">📄 Export TXT</button>
                         </div>
-                    </div>
-
-                    <!-- Multi-Platform Publish Section -->
-                    <div class="publish-section">
-                        <h3>🚀 Publish to Platforms</h3>
-                        <div class="platform-selector">
-                            <label class="platform-checkbox">
-                                <input type="checkbox" value="linkedin" checked>
-                                <span class="platform-chip linkedin">📎 LinkedIn</span>
-                            </label>
-                            <label class="platform-checkbox">
-                                <input type="checkbox" value="facebook">
-                                <span class="platform-chip facebook">📘 Facebook</span>
-                            </label>
-                            <label class="platform-checkbox">
-                                <input type="checkbox" value="instagram">
-                                <span class="platform-chip instagram">📸 Instagram</span>
-                            </label>
-                            <label class="platform-checkbox">
-                                <input type="checkbox" value="x">
-                                <span class="platform-chip x">🐦 X (Twitter)</span>
-                            </label>
-                            <label class="platform-checkbox">
-                                <input type="checkbox" value="google_business">
-                                <span class="platform-chip google">📍 Google Business</span>
-                            </label>
-                        </div>
-                        <button class="btn-publish-all" id="publishAllBtn">🚀 Publish to Selected Platforms</button>
-                        <div class="publish-results" id="publishResults" style="display: none;"></div>
                     </div>
 
                     <div class="tabs">

@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 from typing import Optional
+from datetime import datetime
 import csv
 import io
 
@@ -844,3 +845,152 @@ def _calculate_workflow_status(contents, posts):
         elif scheduled:
             return "scheduled"
     return "generated"
+
+
+# ==================== Platform Adapter Endpoints ====================
+
+@router.get("/platforms")
+async def list_platforms():
+    """Get all available social media platforms with their status."""
+    from app.services.platform_adapter import get_all_platform_configs
+    
+    platforms = get_all_platform_configs()
+    configured_count = sum(1 for p in platforms if p["is_configured"] and not p["is_mock"])
+    
+    return {
+        "platforms": platforms,
+        "summary": {
+            "total": len(platforms),
+            "configured": configured_count,
+            "mock_mode": len(platforms) - configured_count
+        }
+    }
+
+
+@router.post("/publish/batch")
+async def publish_to_multiple_platforms(
+    request: dict,
+    db: Session = Depends(get_db)
+):
+    """
+    Publish content to multiple platforms at once.
+    
+    Supports all platforms: linkedin, facebook, instagram, x, google_business
+    Automatically uses mock mode for unconfigured platforms.
+    
+    Request body:
+    {
+        "platforms": ["linkedin", "facebook", "instagram"],
+        "content": "Your post content here"
+    }
+    """
+    from app.services.platform_adapter import get_platform_adapter, PlatformType
+    
+    platforms = request.get("platforms", [])
+    content = request.get("content", "")
+    
+    if not platforms:
+        raise HTTPException(status_code=400, detail="At least one platform is required")
+    if not content:
+        raise HTTPException(status_code=400, detail="Content is required")
+    
+    results = []
+    
+    for platform_name in platforms:
+        try:
+            adapter = get_platform_adapter(platform_name)
+            result = await adapter.publish(content)
+            results.append(result.to_dict())
+            
+            # Parse published_at if it's a string
+            published_at = result.published_at
+            if published_at and isinstance(published_at, str):
+                published_at = datetime.fromisoformat(published_at.replace('Z', '+00:00'))
+            
+            # Save to scheduled posts for history
+            db_post = ScheduledPost(
+                platform=platform_name,
+                content=content,
+                scheduled_at=None,
+                published_at=published_at,
+                status="published" if result.success else "failed",
+                platform_post_id=result.post_id,
+                error_message=result.error
+            )
+            db.add(db_post)
+        except ValueError as e:
+            results.append({
+                "success": False,
+                "platform": platform_name,
+                "error": str(e)
+            })
+    
+    db.commit()
+    
+    successful = sum(1 for r in results if r.get("success"))
+    return {
+        "total": len(platforms),
+        "successful": successful,
+        "failed": len(platforms) - successful,
+        "results": results
+    }
+
+
+@router.post("/publish/{platform}")
+async def publish_to_single_platform(
+    platform: str,
+    content: str,
+    db: Session = Depends(get_db)
+):
+    """Publish content to a single platform."""
+    from app.services.platform_adapter import get_platform_adapter
+    
+    try:
+        adapter = get_platform_adapter(platform)
+        result = await adapter.publish(content)
+        
+        # Parse published_at if it's a string
+        published_at = result.published_at
+        if published_at and isinstance(published_at, str):
+            published_at = datetime.fromisoformat(published_at.replace('Z', '+00:00'))
+        
+        # Save to scheduled posts for history
+        db_post = ScheduledPost(
+            platform=platform,
+            content=content,
+            scheduled_at=None,
+            published_at=published_at,
+            status="published" if result.success else "failed",
+            platform_post_id=result.post_id,
+            error_message=result.error
+        )
+        db.add(db_post)
+        db.commit()
+        
+        return result.to_dict()
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.get("/platforms/{platform}/validate")
+async def validate_content_for_platform(
+    platform: str,
+    content: str
+):
+    """Validate content for a specific platform's requirements."""
+    from app.services.platform_adapter import get_platform_adapter
+    
+    try:
+        adapter = get_platform_adapter(platform)
+        is_valid, error = adapter.validate_content(content)
+        
+        return {
+            "valid": is_valid,
+            "error": error,
+            "platform": platform,
+            "character_count": len(content),
+            "character_limit": adapter.config.character_limit,
+            "remaining": adapter.config.character_limit - len(content)
+        }
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))

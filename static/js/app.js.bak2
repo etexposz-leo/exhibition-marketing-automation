@@ -100,7 +100,7 @@ function initGenerate() {
         btn.addEventListener('click', () => copyContent(btn.dataset.copy));
     });
     
-    // Publish buttons (old single platform)
+    // Publish buttons
     document.querySelectorAll('.btn-publish').forEach(btn => {
         btn.addEventListener('click', () => publishNow(btn.dataset.platform));
     });
@@ -112,88 +112,6 @@ function initGenerate() {
     
     // Export
     document.getElementById('exportTxtBtn').addEventListener('click', exportTxt);
-    
-    // Multi-platform publish
-    document.getElementById('publishAllBtn').addEventListener('click', publishToSelected);
-}
-
-async function publishToSelected() {
-    const checkboxes = document.querySelectorAll('.platform-checkbox input:checked');
-    const platforms = Array.from(checkboxes).map(cb => cb.value);
-    
-    if (platforms.length === 0) {
-        showToast('Please select at least one platform', true);
-        return;
-    }
-    
-    // Get content from the active tab
-    let content = currentContent.linkedin;
-    const activeTab = document.querySelector('.tab-btn.active');
-    if (activeTab) {
-        const tab = activeTab.dataset.tab;
-        if (tab === 'facebook') content = currentContent.facebook;
-        else if (tab === 'google') content = currentContent.google;
-    }
-    
-    if (!content) {
-        showToast('No content to publish', true);
-        return;
-    }
-    
-    const btn = document.getElementById('publishAllBtn');
-    btn.disabled = true;
-    btn.innerHTML = '<svg class="spinner" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="3" fill="none" stroke-dasharray="30 70"/></svg> Publishing...';
-    
-    try {
-        const response = await fetch('/api/publish/batch', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({platforms, content})
-        });
-        
-        const result = await response.json();
-        displayPublishResults(result);
-        
-        if (result.successful > 0) {
-            showToast(`Published to ${result.successful} platform(s)!`);
-        } else {
-            showToast('All publishes failed', true);
-        }
-    } catch (error) {
-        showToast('Failed to publish', true);
-    } finally {
-        btn.disabled = false;
-        btn.innerHTML = '🚀 Publish to Selected Platforms';
-    }
-}
-
-function displayPublishResults(result) {
-    const container = document.getElementById('publishResults');
-    container.style.display = 'block';
-    
-    const icons = {
-        linkedin: '📎', facebook: '📘', instagram: '📸',
-        x: '🐦', google_business: '📍'
-    };
-    
-    container.innerHTML = `
-        <div style="margin-bottom: 0.75rem; font-size: 0.85rem; color: var(--text-secondary);">
-            ${result.successful}/${result.total} successful
-        </div>
-        ${result.results.map(r => `
-            <div class="publish-result-item ${r.success ? 'success' : 'failed'}">
-                <span class="result-icon">${icons[r.platform] || '📱'}</span>
-                <div class="result-details">
-                    <div class="result-platform">${r.platform}</div>
-                    ${r.success 
-                        ? `<div class="result-id">${r.post_id}</div>`
-                        : `<div class="result-error">${r.error}</div>`
-                    }
-                </div>
-                <span>${r.success ? '✅' : '❌'}</span>
-            </div>
-        `).join('')}
-    `;
 }
 
 async function handleGenerate(e) {
