@@ -447,12 +447,17 @@ async def schedule_post(
 
 @router.get("/scheduled-posts", response_model=list[ScheduledPostResponse])
 async def list_scheduled_posts(
+    request: Request,
     platform: Optional[str] = None,
     status: Optional[str] = None,
     db: Session = Depends(get_db)
 ):
     """List all scheduled posts."""
-    query = db.query(ScheduledPost)
+    user_id = request.session.get("user_id")
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    
+    query = db.query(ScheduledPost).filter(ScheduledPost.user_id == user_id)
     
     if platform:
         query = query.filter(ScheduledPost.platform == platform)
@@ -481,9 +486,16 @@ async def list_scheduled_posts(
 
 
 @router.get("/scheduled-posts/{post_id}", response_model=ScheduledPostResponse)
-async def get_scheduled_post(post_id: int, db: Session = Depends(get_db)):
+async def get_scheduled_post(post_id: int, request: Request, db: Session = Depends(get_db)):
     """Get a specific scheduled post."""
-    post = db.query(ScheduledPost).filter(ScheduledPost.id == post_id).first()
+    user_id = request.session.get("user_id")
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    
+    post = db.query(ScheduledPost).filter(
+        ScheduledPost.id == post_id,
+        ScheduledPost.user_id == user_id
+    ).first()
     if not post:
         raise HTTPException(status_code=404, detail="Scheduled post not found")
     
@@ -504,9 +516,16 @@ async def get_scheduled_post(post_id: int, db: Session = Depends(get_db)):
 
 
 @router.delete("/scheduled-posts/{post_id}")
-async def delete_scheduled_post(post_id: int, db: Session = Depends(get_db)):
+async def delete_scheduled_post(post_id: int, request: Request, db: Session = Depends(get_db)):
     """Delete a scheduled post."""
-    post = db.query(ScheduledPost).filter(ScheduledPost.id == post_id).first()
+    user_id = request.session.get("user_id")
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    
+    post = db.query(ScheduledPost).filter(
+        ScheduledPost.id == post_id,
+        ScheduledPost.user_id == user_id
+    ).first()
     if not post:
         raise HTTPException(status_code=404, detail="Scheduled post not found")
     
