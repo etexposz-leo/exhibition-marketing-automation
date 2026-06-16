@@ -11,21 +11,24 @@
         .welcome-header { margin-bottom: 2rem; }
         .welcome-title { font-size: 1.75rem; font-weight: 700; color: var(--text); margin-bottom: 0.5rem; }
         .welcome-subtitle { color: var(--text-secondary); font-size: 0.95rem; }
-        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1.25rem; margin-bottom: 2rem; }
-        .stat-card { background: var(--surface); border-radius: 12px; padding: 1.5rem; border: 1px solid var(--surface-light); display: flex; align-items: center; gap: 1rem; transition: transform 0.2s, box-shadow 0.2s; }
+        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; margin-bottom: 2rem; }
+        .stat-card { background: var(--surface); border-radius: 12px; padding: 1.25rem; border: 1px solid var(--surface-light); display: flex; align-items: center; gap: 1rem; transition: transform 0.2s, box-shadow 0.2s; }
         .stat-card:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,0,0,0.1); }
-        .stat-icon { width: 56px; height: 56px; border-radius: 12px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+        .stat-icon { width: 48px; height: 48px; border-radius: 12px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
         .stat-icon.campaigns { background: linear-gradient(135deg, #667eea, #764ba2); }
         .stat-icon.scheduled { background: linear-gradient(135deg, #f093fb, #f5576c); }
         .stat-icon.published { background: linear-gradient(135deg, #4facfe, #00f2fe); }
         .stat-icon.failed { background: linear-gradient(135deg, #fa709a, #fee140); }
-        .stat-icon svg { width: 28px; height: 28px; stroke: white; }
+        .stat-icon.events { background: linear-gradient(135deg, #11998e, #38ef7d); }
+        .stat-icon.documents { background: linear-gradient(135deg, #fc4a1a, #f7b733); }
+        .stat-icon.queries { background: linear-gradient(135deg, #8e2de2, #4a00e0); }
+        .stat-icon svg { width: 24px; height: 24px; stroke: white; }
         .stat-info { display: flex; flex-direction: column; }
-        .stat-value { font-size: 2rem; font-weight: 700; color: var(--text); line-height: 1.2; }
-        .stat-label { font-size: 0.8rem; color: var(--text-secondary); margin-top: 0.25rem; }
+        .stat-value { font-size: 1.75rem; font-weight: 700; color: var(--text); line-height: 1.2; }
+        .stat-label { font-size: 0.75rem; color: var(--text-secondary); margin-top: 0.25rem; }
         .quick-links { background: var(--surface); border-radius: 12px; padding: 1.5rem; border: 1px solid var(--surface-light); }
         .quick-links-title { font-size: 1rem; font-weight: 600; color: var(--text); margin-bottom: 1rem; }
-        .quick-links-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; }
+        .quick-links-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; }
         .quick-link { display: flex; align-items: center; gap: 0.75rem; padding: 1rem; background: var(--bg); border-radius: 8px; text-decoration: none; color: var(--text); transition: all 0.2s; }
         .quick-link:hover { background: var(--primary); color: white; }
         .quick-link:hover svg { stroke: white; }
@@ -40,6 +43,7 @@
         .activity-icon.scheduled { background: rgba(102, 126, 234, 0.15); color: var(--primary); }
         .activity-icon.published { background: rgba(72, 199, 142, 0.15); color: var(--success); }
         .activity-icon.failed { background: rgba(239, 68, 68, 0.15); color: var(--error); }
+        .activity-icon.events { background: rgba(17, 153, 142, 0.15); color: #11998e; }
         .activity-icon svg { width: 16px; height: 16px; }
         .activity-details { flex: 1; }
         .activity-platform { font-weight: 500; font-size: 0.9rem; color: var(--text); }
@@ -60,12 +64,39 @@
                 
                 <section class="stats-grid">
                     <div class="stat-card">
+                        <div class="stat-icon events">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                        </div>
+                        <div class="stat-info">
+                            <span class="stat-value" id="total-events">0</span>
+                            <span class="stat-label">Total Events</span>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon documents">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                        </div>
+                        <div class="stat-info">
+                            <span class="stat-value" id="total-documents">0</span>
+                            <span class="stat-label">Documents</span>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon queries">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 015.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                        </div>
+                        <div class="stat-info">
+                            <span class="stat-value" id="total-queries">0</span>
+                            <span class="stat-label">KB Queries</span>
+                        </div>
+                    </div>
+                    <div class="stat-card">
                         <div class="stat-icon campaigns">
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
                         </div>
                         <div class="stat-info">
                             <span class="stat-value" id="total-campaigns">0</span>
-                            <span class="stat-label">Total Campaigns</span>
+                            <span class="stat-label">Campaigns</span>
                         </div>
                     </div>
                     <div class="stat-card">
@@ -74,7 +105,7 @@
                         </div>
                         <div class="stat-info">
                             <span class="stat-value" id="scheduled-posts">0</span>
-                            <span class="stat-label">Scheduled Posts</span>
+                            <span class="stat-label">Scheduled</span>
                         </div>
                     </div>
                     <div class="stat-card">
@@ -83,16 +114,7 @@
                         </div>
                         <div class="stat-info">
                             <span class="stat-value" id="published-posts">0</span>
-                            <span class="stat-label">Published Posts</span>
-                        </div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-icon failed">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
-                        </div>
-                        <div class="stat-info">
-                            <span class="stat-value" id="failed-posts">0</span>
-                            <span class="stat-label">Failed Posts</span>
+                            <span class="stat-label">Published</span>
                         </div>
                     </div>
                 </section>
@@ -100,21 +122,21 @@
                 <section class="quick-links">
                     <h2 class="quick-links-title">Quick Actions</h2>
                     <div class="quick-links-grid">
-                        <a href="/marketing" class="quick-link">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
-                            <span class="quick-link-text">Marketing Automation</span>
+                        <a href="/events" class="quick-link">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                            <span class="quick-link-text">Create Event</span>
                         </a>
-                        <a href="/growth" class="quick-link">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 6l-9.5 9.5-5-5L1 18"/><polyline points="17 6 23 6 23 12"/></svg>
-                            <span class="quick-link-text">Growth Advisor</span>
+                        <a href="/events" class="quick-link">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                            <span class="quick-link-text">Upload Manual</span>
                         </a>
                         <a href="/knowledge-base" class="quick-link">
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 016.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/></svg>
                             <span class="quick-link-text">Knowledge Base</span>
                         </a>
-                        <a href="/history" class="quick-link">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-                            <span class="quick-link-text">View History</span>
+                        <a href="/marketing" class="quick-link">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+                            <span class="quick-link-text">Marketing</span>
                         </a>
                     </div>
                 </section>
@@ -134,6 +156,15 @@
     <script>
         async function loadDashboard() {
             try {
+                // Load event stats
+                const eventStatsRes = await fetch('/api/events/stats');
+                if (eventStatsRes.ok) {
+                    const eventStats = await eventStatsRes.json();
+                    document.getElementById('total-events').textContent = eventStats.total_events || 0;
+                    document.getElementById('total-documents').textContent = eventStats.total_documents || 0;
+                    document.getElementById('total-queries').textContent = eventStats.total_queries || 0;
+                }
+                
                 const campaignsRes = await fetch('/api/campaigns');
                 const campaigns = await campaignsRes.json();
                 document.getElementById('total-campaigns').textContent = campaigns.length;
@@ -142,11 +173,10 @@
                 const posts = await postsRes.json();
                 document.getElementById('scheduled-posts').textContent = posts.filter(p => p.status === 'scheduled').length;
                 document.getElementById('published-posts').textContent = posts.filter(p => p.status === 'published').length;
-                document.getElementById('failed-posts').textContent = posts.filter(p => p.status === 'failed').length;
                 
                 const list = document.getElementById('activityList');
                 if (posts.length === 0) { 
-                    list.innerHTML = '<p style="color: var(--text-secondary); text-align: center; padding: 2rem;">No recent activity yet. Start by creating a campaign!</p>'; 
+                    list.innerHTML = '<p style="color: var(--text-secondary); text-align: center; padding: 2rem;">No recent activity yet. Start by creating an event or campaign!</p>'; 
                     return; 
                 }
                 

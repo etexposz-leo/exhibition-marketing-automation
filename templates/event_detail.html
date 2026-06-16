@@ -1,0 +1,618 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Event Details | BoothOS</title>
+    <link rel="stylesheet" href="/static/css/styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    {% include 'components/nav.html' %}
+    
+    <div class="main-wrapper">
+        <header class="main-header">
+            <div class="header-with-back">
+                <a href="/events" class="back-link">← Back to Events</a>
+                <h1 class="page-title" id="eventTitle">Event Details</h1>
+            </div>
+            <p class="page-subtitle" id="eventSubtitle">Manage event documents and knowledge</p>
+        </header>
+        
+        <main class="main-content">
+            <div class="event-info-card" id="eventInfoCard">
+                <div class="event-info-header">
+                    <div>
+                        <h2 id="eventName">Loading...</h2>
+                        <span class="event-status-badge" id="eventStatus">active</span>
+                    </div>
+                    <div class="event-actions">
+                        <a href="/events/{{ event_id }}/assistant" class="btn-primary">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18">
+                                <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/>
+                            </svg>
+                            Open AI Assistant
+                        </a>
+                    </div>
+                </div>
+                <div class="event-info-grid" id="eventInfoGrid">
+                    <!-- Populated by JS -->
+                </div>
+            </div>
+            
+            <section class="section">
+                <div class="section-header">
+                    <h2 class="section-title">📄 Event Documents</h2>
+                    <button class="btn-primary" onclick="showUploadModal()">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18">
+                            <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
+                            <polyline points="17 8 12 3 7 8"/>
+                            <line x1="12" y1="3" x2="12" y2="15"/>
+                        </svg>
+                        Upload Document
+                    </button>
+                </div>
+                
+                <div class="upload-area" id="uploadArea" onclick="document.getElementById('fileInput').click()">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="48" height="48" style="color: var(--text-secondary);">
+                        <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
+                        <polyline points="17 8 12 3 7 8"/>
+                        <line x1="12" y1="3" x2="12" y2="15"/>
+                    </svg>
+                    <p style="color: var(--text-secondary); margin-top: 0.5rem;">Drag & drop files here or click to browse</p>
+                    <p style="color: var(--text-secondary); font-size: 0.8rem;">Supports PDF, DOCX, TXT</p>
+                    <input type="file" id="fileInput" style="display: none;" accept=".pdf,.docx,.txt" onchange="handleFileSelect(event)">
+                </div>
+                
+                <div class="documents-list" id="documentsList">
+                    <div class="empty-state">
+                        <div class="empty-state-icon">📂</div>
+                        <p>No documents uploaded yet</p>
+                        <p style="font-size: 0.85rem; color: var(--text-secondary);">Upload exhibitor manuals or venue rules</p>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+    
+    <!-- Upload Modal -->
+    <div class="modal" id="uploadModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Upload Document</h2>
+                <button class="modal-close" onclick="hideUploadModal()">&times;</button>
+            </div>
+            <form class="modal-form" onsubmit="uploadDocument(event)">
+                <div class="form-group">
+                    <label for="docFile">File *</label>
+                    <input type="file" id="docFile" name="file" accept=".pdf,.docx,.txt" required>
+                </div>
+                <div class="form-group">
+                    <label for="docType">Document Type</label>
+                    <select id="docType" name="document_type">
+                        <option value="exhibitor_manual">Exhibitor Manual</option>
+                        <option value="venue_rules">Venue Rules</option>
+                        <option value="fire_safety">Fire Safety</option>
+                        <option value="electrical">Electrical Requirements</option>
+                        <option value="hanging_signs">Hanging Signs</option>
+                        <option value="labor_rules">Labor Rules</option>
+                        <option value="booth_design">Booth Design Guide</option>
+                        <option value="other">Other</option>
+                    </select>
+                </div>
+                <div class="upload-progress" id="uploadProgress" style="display: none;">
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="progressFill"></div>
+                    </div>
+                    <p class="progress-text" id="progressText">Uploading...</p>
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="btn-secondary" onclick="hideUploadModal()">Cancel</button>
+                    <button type="submit" class="btn-primary" id="uploadBtn">Upload</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        const eventId = {{ event_id }};
+        let documents = [];
+        
+        async function loadEvent() {
+            try {
+                const response = await fetch(`/api/events/${eventId}`);
+                if (!response.ok) {
+                    window.location.href = '/events';
+                    return;
+                }
+                const event = await response.json();
+                renderEvent(event);
+                await loadDocuments();
+            } catch (e) {
+                console.error('Error loading event:', e);
+                window.location.href = '/events';
+            }
+        }
+        
+        function renderEvent(event) {
+            document.getElementById('eventTitle').textContent = event.event_name;
+            document.getElementById('eventSubtitle').textContent = `${event.venue || ''} ${event.city ? ', ' + event.city : ''}`.trim() || 'Event Details';
+            document.getElementById('eventName').textContent = event.event_name;
+            document.getElementById('eventStatus').textContent = event.status;
+            document.getElementById('eventStatus').className = `event-status-badge status-${event.status}`;
+            
+            const grid = document.getElementById('eventInfoGrid');
+            const details = [];
+            if (event.venue) details.push({ icon: '📍', label: 'Venue', value: event.venue });
+            if (event.city || event.country) details.push({ icon: '🌍', label: 'Location', value: [event.city, event.country].filter(Boolean).join(', ') });
+            if (event.start_date) details.push({ icon: '📅', label: 'Dates', value: formatDateRange(event.start_date, event.end_date) });
+            if (event.organizer) details.push({ icon: '🏢', label: 'Organizer', value: event.organizer });
+            if (event.website) details.push({ icon: '🔗', label: 'Website', value: event.website, link: event.website });
+            if (event.document_count !== undefined) details.push({ icon: '📄', label: 'Documents', value: event.document_count });
+            
+            grid.innerHTML = details.map(d => `
+                <div class="info-item">
+                    <span class="info-icon">${d.icon}</span>
+                    <div class="info-content">
+                        <span class="info-label">${d.label}</span>
+                        ${d.link ? `<a href="${d.link}" target="_blank" class="info-value info-link">${escapeHtml(d.value)}</a>` : `<span class="info-value">${escapeHtml(d.value)}</span>`}
+                    </div>
+                </div>
+            `).join('');
+        }
+        
+        async function loadDocuments() {
+            try {
+                const response = await fetch(`/api/events/${eventId}/documents`);
+                if (!response.ok) throw new Error('Failed to load documents');
+                documents = await response.json();
+                renderDocuments();
+            } catch (e) {
+                console.error('Error loading documents:', e);
+            }
+        }
+        
+        function renderDocuments() {
+            const list = document.getElementById('documentsList');
+            if (documents.length === 0) {
+                list.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-state-icon">📂</div>
+                        <p>No documents uploaded yet</p>
+                        <p style="font-size: 0.85rem; color: var(--text-secondary);">Upload exhibitor manuals or venue rules</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            list.innerHTML = documents.map(doc => `
+                <div class="document-item">
+                    <div class="doc-icon">
+                        ${getFileIcon(doc.file_type)}
+                    </div>
+                    <div class="doc-info">
+                        <span class="doc-name">${escapeHtml(doc.original_filename || doc.filename)}</span>
+                        <span class="doc-meta">${doc.document_type?.replace('_', ' ') || 'Document'} • ${formatFileSize(doc.file_size)} • ${doc.chunk_count} chunks • ${formatDate(doc.created_at)}</span>
+                    </div>
+                    <div class="doc-status">
+                        <span class="status-badge status-${doc.status}">${doc.status}</span>
+                    </div>
+                    <button class="btn-icon btn-danger-icon" onclick="deleteDocument(${doc.id})" title="Delete">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18">
+                            <polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/>
+                        </svg>
+                    </button>
+                </div>
+            `).join('');
+        }
+        
+        function showUploadModal() {
+            document.getElementById('uploadModal').style.display = 'flex';
+        }
+        
+        function hideUploadModal() {
+            document.getElementById('uploadModal').style.display = 'none';
+            document.getElementById('uploadProgress').style.display = 'none';
+            document.getElementById('uploadBtn').disabled = false;
+        }
+        
+        function handleFileSelect(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            showUploadModal();
+            document.getElementById('docFile').files = event.target.files;
+        }
+        
+        async function uploadDocument(e) {
+            e.preventDefault();
+            const form = e.target;
+            const formData = new FormData(form);
+            formData.append('document_type', document.getElementById('docType').value);
+            
+            document.getElementById('uploadProgress').style.display = 'block';
+            document.getElementById('uploadBtn').disabled = true;
+            document.getElementById('progressText').textContent = 'Uploading and indexing...';
+            
+            try {
+                const response = await fetch(`/api/events/${eventId}/documents`, {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.detail || 'Upload failed');
+                }
+                
+                hideUploadModal();
+                form.reset();
+                await loadDocuments();
+            } catch (err) {
+                console.error('Error uploading document:', err);
+                alert('Failed to upload document: ' + err.message);
+                document.getElementById('uploadBtn').disabled = false;
+            }
+        }
+        
+        async function deleteDocument(id) {
+            if (!confirm('Delete this document?')) return;
+            
+            try {
+                const response = await fetch(`/api/events/${eventId}/documents/${id}`, {
+                    method: 'DELETE'
+                });
+                
+                if (!response.ok) throw new Error('Failed to delete');
+                await loadDocuments();
+            } catch (err) {
+                console.error('Error deleting document:', err);
+                alert('Failed to delete document');
+            }
+        }
+        
+        function getFileIcon(type) {
+            const icons = {
+                'pdf': '📕',
+                'docx': '📘',
+                'doc': '📘',
+                'txt': '📄'
+            };
+            return icons[type?.toLowerCase()] || '📄';
+        }
+        
+        function formatDate(dateStr) {
+            if (!dateStr) return '';
+            const date = new Date(dateStr);
+            return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+        }
+        
+        function formatDateRange(start, end) {
+            if (!start) return '';
+            const startDate = new Date(start);
+            const startStr = startDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+            if (!end || start === end) return startStr;
+            const endDate = new Date(end);
+            const endStr = endDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+            return `${startStr} - ${endStr}`;
+        }
+        
+        function formatFileSize(bytes) {
+            if (!bytes) return '';
+            if (bytes < 1024) return bytes + ' B';
+            if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+            return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+        }
+        
+        function escapeHtml(text) {
+            if (!text) return '';
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+        
+        loadEvent();
+    </script>
+    
+    <style>
+        .header-with-back {
+            display: flex;
+            flex-direction: column;
+            gap: 0.25rem;
+        }
+        
+        .back-link {
+            font-size: 0.85rem;
+            color: var(--primary);
+            text-decoration: none;
+        }
+        
+        .back-link:hover {
+            text-decoration: underline;
+        }
+        
+        .event-info-card {
+            background: var(--surface);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            border: 1px solid var(--surface-light);
+        }
+        
+        .event-info-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 1.5rem;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+        
+        .event-info-header h2 {
+            margin: 0;
+            font-size: 1.5rem;
+        }
+        
+        .event-status-badge {
+            display: inline-block;
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            margin-top: 0.5rem;
+        }
+        
+        .status-active { background: var(--success); color: white; }
+        .status-completed { background: var(--text-secondary); color: white; }
+        .status-cancelled { background: var(--error); color: white; }
+        
+        .event-actions {
+            display: flex;
+            gap: 0.75rem;
+        }
+        
+        .event-info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 1.25rem;
+        }
+        
+        .info-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 0.75rem;
+        }
+        
+        .info-icon {
+            font-size: 1.25rem;
+            width: 24px;
+            text-align: center;
+        }
+        
+        .info-content {
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .info-label {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+        }
+        
+        .info-value {
+            font-size: 0.9rem;
+            color: var(--text);
+        }
+        
+        .info-link {
+            color: var(--primary);
+        }
+        
+        .section {
+            background: var(--surface);
+            border-radius: 12px;
+            padding: 1.5rem;
+            border: 1px solid var(--surface-light);
+        }
+        
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.25rem;
+        }
+        
+        .section-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+            margin: 0;
+        }
+        
+        .upload-area {
+            border: 2px dashed var(--border);
+            border-radius: 12px;
+            padding: 2rem;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s;
+            margin-bottom: 1.5rem;
+        }
+        
+        .upload-area:hover {
+            border-color: var(--primary);
+            background: rgba(99, 102, 241, 0.05);
+        }
+        
+        .documents-list {
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+        }
+        
+        .document-item {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            padding: 1rem;
+            background: var(--bg);
+            border-radius: 8px;
+            border: 1px solid var(--surface-light);
+        }
+        
+        .doc-icon {
+            font-size: 2rem;
+        }
+        
+        .doc-info {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .doc-name {
+            font-weight: 500;
+            color: var(--text);
+        }
+        
+        .doc-meta {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            text-transform: capitalize;
+        }
+        
+        .doc-status {
+            margin-right: 0.5rem;
+        }
+        
+        .status-badge {
+            padding: 0.2rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.7rem;
+            font-weight: 600;
+        }
+        
+        .btn-icon {
+            background: transparent;
+            border: none;
+            cursor: pointer;
+            padding: 0.5rem;
+            border-radius: 4px;
+            transition: all 0.2s;
+        }
+        
+        .btn-icon:hover {
+            background: var(--surface-light);
+        }
+        
+        .btn-danger-icon {
+            color: var(--error);
+        }
+        
+        /* Modal styles */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        
+        .modal-content {
+            background: var(--surface);
+            border-radius: 12px;
+            padding: 1.5rem;
+            width: 90%;
+            max-width: 450px;
+        }
+        
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+        }
+        
+        .modal-header h2 {
+            font-size: 1.25rem;
+            margin: 0;
+        }
+        
+        .modal-close {
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: var(--text-secondary);
+        }
+        
+        .modal-form {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+        
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.35rem;
+        }
+        
+        .form-group label {
+            font-size: 0.8rem;
+            font-weight: 500;
+            color: var(--text-secondary);
+        }
+        
+        .form-group input,
+        .form-group select {
+            padding: 0.6rem 0.8rem;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            font-size: 0.9rem;
+            background: var(--bg);
+            color: var(--text);
+        }
+        
+        .upload-progress {
+            padding: 1rem;
+            background: var(--bg);
+            border-radius: 8px;
+        }
+        
+        .progress-bar {
+            height: 8px;
+            background: var(--surface-light);
+            border-radius: 4px;
+            overflow: hidden;
+            margin-bottom: 0.5rem;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: var(--primary);
+            border-radius: 4px;
+            width: 0%;
+            transition: width 0.3s;
+        }
+        
+        .progress-text {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            text-align: center;
+            margin: 0;
+        }
+        
+        .form-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 0.75rem;
+            margin-top: 0.5rem;
+        }
+    </style>
+</body>
+</html>

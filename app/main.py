@@ -10,6 +10,7 @@ from app.api.routes import router as api_router
 from app.api.auth_routes import router as auth_router
 from app.api.growth_routes import router as growth_router
 from app.api.rag_routes import router as rag_router
+from app.api.event_routes import router as event_router
 from app.core.database import engine, Base, SessionLocal
 from app.core.config import enforce_production_config, print_config_status
 from app.services.scheduler import start_scheduler, stop_scheduler
@@ -83,6 +84,7 @@ app.include_router(api_router, prefix="/api")
 app.include_router(auth_router, prefix="/api")
 app.include_router(growth_router, prefix="/api")
 app.include_router(rag_router, prefix="/api/rag")
+app.include_router(event_router, prefix="/api")
 
 # Serve main page
 @app.get("/")
@@ -151,6 +153,30 @@ async def marketing_page(request: Request):
     if not request.session.get("user_id"):
         return RedirectResponse(url="/login")
     return RedirectResponse(url="/dashboard")
+
+
+@app.get("/events")
+async def events_page(request: Request):
+    """Events page - requires authentication."""
+    if not request.session.get("user_id"):
+        return RedirectResponse(url="/login")
+    return render_template("events.html", {"request": request})
+
+
+@app.get("/events/{event_id}")
+async def event_detail_page(request: Request, event_id: int):
+    """Event detail page - requires authentication."""
+    if not request.session.get("user_id"):
+        return RedirectResponse(url="/login")
+    return render_template("event_detail.html", {"request": request, "event_id": event_id})
+
+
+@app.get("/events/{event_id}/assistant")
+async def event_assistant_page(request: Request, event_id: int):
+    """Event AI Assistant page - requires authentication."""
+    if not request.session.get("user_id"):
+        return RedirectResponse(url="/login")
+    return render_template("event_assistant.html", {"request": request, "event_id": event_id})
 
 
 if __name__ == "__main__":

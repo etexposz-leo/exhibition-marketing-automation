@@ -344,3 +344,74 @@ class ComplianceViolation(Base):
     is_resolved = Column(Boolean, default=False)
     created_at = Column(DateTime, default=datetime.utcnow)
     resolved_at = Column(DateTime, nullable=True)
+
+
+# ==================== Event Workspace Models ====================
+
+
+class Event(Base):
+    """Event workspace for exhibition management."""
+    __tablename__ = "events"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, nullable=False, index=True)
+    event_name = Column(String(500), nullable=False)
+    venue = Column(String(500), nullable=True)
+    city = Column(String(200), nullable=True)
+    country = Column(String(200), nullable=True)
+    start_date = Column(Date, nullable=True)
+    end_date = Column(Date, nullable=True)
+    organizer = Column(String(500), nullable=True)
+    website = Column(String(500), nullable=True)
+    status = Column(String(50), default="active")  # active, completed, cancelled
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class EventDocument(Base):
+    """Documents uploaded for specific events."""
+    __tablename__ = "event_documents"
+
+    id = Column(Integer, primary_key=True, index=True)
+    event_id = Column(Integer, nullable=False, index=True)
+    user_id = Column(Integer, nullable=False, index=True)
+    filename = Column(String(500), nullable=False)
+    original_filename = Column(String(500), nullable=True)
+    file_type = Column(String(50), nullable=True)  # pdf, docx, txt
+    file_size = Column(Integer, nullable=True)  # bytes
+    file_path = Column(String(500), nullable=True)  # Storage path
+    document_type = Column(String(100), nullable=True)  # exhibitor_manual, venue_rules, etc.
+    status = Column(String(50), default="processing")  # processing, indexed, error
+    chunk_count = Column(Integer, default=0)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class EventDocumentChunk(Base):
+    """Document chunks for event RAG retrieval."""
+    __tablename__ = "event_document_chunks"
+
+    id = Column(Integer, primary_key=True, index=True)
+    event_id = Column(Integer, nullable=False, index=True)
+    user_id = Column(Integer, nullable=False, index=True)
+    document_id = Column(Integer, nullable=False, index=True)
+    chunk_index = Column(Integer, nullable=False)
+    content = Column(Text, nullable=False)
+    page_number = Column(Integer, nullable=True)
+    metadata_json = Column(Text, nullable=True)  # JSON with additional metadata
+    embedding = Column(Text, nullable=True)  # Vector embedding (stored as JSON string)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class EventQuery(Base):
+    """Event AI Assistant query history."""
+    __tablename__ = "event_queries"
+
+    id = Column(Integer, primary_key=True, index=True)
+    event_id = Column(Integer, nullable=False, index=True)
+    user_id = Column(Integer, nullable=False, index=True)
+    question = Column(Text, nullable=False)
+    answer = Column(Text, nullable=False)
+    sources_json = Column(Text, nullable=True)  # JSON array of source documents/chunks
+    provider = Column(String(50), default="mock")  # mock, openai, deepseek, nvidia
+    created_at = Column(DateTime, default=datetime.utcnow)
