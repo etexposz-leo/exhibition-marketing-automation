@@ -8,6 +8,7 @@ import os
 from app.api.routes import router as api_router
 from app.api.auth_routes import router as auth_router
 from app.core.database import engine, Base, SessionLocal
+from app.core.config import enforce_production_config, print_config_status
 from app.services.scheduler import start_scheduler, stop_scheduler
 from app.core.auth import create_demo_account
 from starlette.middleware.sessions import SessionMiddleware
@@ -15,6 +16,13 @@ from starlette.middleware.sessions import SessionMiddleware
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    # Production configuration validation
+    import os
+    if os.environ.get("ENVIRONMENT") == "production":
+        enforce_production_config()
+    else:
+        print_config_status()
+    
     # Startup
     await start_scheduler()
 
