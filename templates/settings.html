@@ -247,6 +247,62 @@
                 </div>
             </section>
 
+            <!-- Growth Advisor Section -->
+            <section class="settings-section">
+                <h2 class="section-title">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="24" height="24">
+                        <path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                    </svg>
+                    Growth Advisor
+                </h2>
+                <div class="settings-grid">
+                    <div class="setting-card" style="grid-column: 1 / -1;">
+                        <div class="setting-header">
+                            <div class="setting-info">
+                                <h3>AI SEO & Visibility Monitoring</h3>
+                                <p>Track keyword rankings, ChatGPT, and DeepSeek visibility</p>
+                            </div>
+                        </div>
+                        <div class="setting-body">
+                            <div class="settings-info" style="background: #f8f9fa; padding: 16px; border-radius: 8px; margin-bottom: 16px;">
+                                <h4 style="margin: 0 0 12px 0; font-size: 14px;">Monitoring Status</h4>
+                                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px;">
+                                    <div>
+                                        <span style="font-size: 12px; color: #666;">Google Search Console</span>
+                                        <div id="gsc-status-display" style="font-weight: 600;">Checking...</div>
+                                    </div>
+                                    <div>
+                                        <span style="font-size: 12px; color: #666;">ChatGPT Visibility</span>
+                                        <div id="chatgpt-status-display" style="font-weight: 600;">Checking...</div>
+                                    </div>
+                                    <div>
+                                        <span style="font-size: 12px; color: #666;">DeepSeek Visibility</span>
+                                        <div id="deepseek-status-display" style="font-weight: 600;">Checking...</div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="settings-info" style="background: #fff3cd; padding: 16px; border-radius: 8px;">
+                                <h4 style="margin: 0 0 8px 0; font-size: 14px;">Required Environment Variables</h4>
+                                <p style="margin: 0 0 12px 0; font-size: 13px; color: #666;">
+                                    Configure these in your <code>.env</code> file or Render dashboard:
+                                </p>
+                                <ul style="margin: 0; padding-left: 20px; font-size: 13px;">
+                                    <li><code>GOOGLE_SEARCH_CONSOLE_CREDENTIALS</code> - JSON credentials for Google Search Console API</li>
+                                    <li><code>OPENAI_API_KEY</code> - For ChatGPT visibility monitoring</li>
+                                    <li><code>DEEPSEEK_API_KEY</code> - For DeepSeek visibility monitoring</li>
+                                </ul>
+                                <p style="margin: 12px 0 0 0; font-size: 12px; color: #888;">
+                                    <strong>Note:</strong> Without these, Growth Advisor runs in mock mode with simulated data.
+                                </p>
+                            </div>
+                        </div>
+                        <div class="setting-footer">
+                            <a href="/growth" class="btn-secondary" style="padding: 10px 20px; border-radius: 8px; text-decoration: none;">Open Growth Advisor</a>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
             <!-- Toast Notification -->
             <div class="toast" id="toast"><span class="toast-message"></span></div>
         </main>

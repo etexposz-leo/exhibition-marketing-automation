@@ -179,12 +179,62 @@ class PostScheduler:
 # Global scheduler instance
 scheduler = PostScheduler()
 
+# APScheduler for daily jobs
+_scheduler = None
+
+
+def get_scheduler():
+    """Get or create APScheduler instance."""
+    global _scheduler
+    if _scheduler is None:
+        from apscheduler.schedulers.asyncio import AsyncIOScheduler
+        _scheduler = AsyncIOScheduler()
+    return _scheduler
+
+
+async def run_daily_growth_check():
+    """Run daily growth check for all users."""
+    from app.services.growth_advisor import run_daily_growth_check as run_check
+    try:
+        await run_check()
+    except Exception as e:
+        logger.error(f"Daily growth check failed: {e}")
+
+
+def setup_growth_scheduler():
+    """Setup the growth advisor daily job."""
+    sched = get_scheduler()
+    if not sched.running:
+        # Add daily growth check at 8:00 AM
+        sched.add_job(
+            run_daily_growth_check,
+            'cron',
+            hour=8,
+            minute=0,
+            id='daily_growth_check',
+            replace_existing=True
+        )
+        logger.info("Growth Advisor daily check scheduled for 08:00 UTC")
+
 
 async def start_scheduler():
     """Start the global scheduler."""
     await scheduler.start()
+    
+    # Setup and start growth scheduler
+    setup_growth_scheduler()
+    sched = get_scheduler()
+    if not sched.running:
+        sched.start()
+        logger.info("Growth scheduler started")
 
 
 async def stop_scheduler():
     """Stop the global scheduler."""
     await scheduler.stop()
+    
+    # Stop growth scheduler
+    global _scheduler
+    if _scheduler and _scheduler.running:
+        _scheduler.shutdown(wait=False)
+        logger.info("Growth scheduler stopped")

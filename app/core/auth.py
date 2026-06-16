@@ -7,7 +7,7 @@ from datetime import datetime, timedelta
 from typing import Optional
 from sqlalchemy.orm import Session
 
-from app.models.models import User, Campaign, GeneratedContent, ScheduledPost
+from app.models.models import User, Campaign, GeneratedContent, ScheduledPost, SEOKeyword, Competitor
 
 
 def hash_password(password: str) -> str:
@@ -154,5 +154,84 @@ def create_demo_data(db: Session, user_id: int):
     
     for post in scheduled_posts:
         db.add(post)
+    
+    # Demo SEO keywords
+    demo_keywords = [
+        SEOKeyword(
+            user_id=user_id,
+            keyword="exhibition booth design company",
+            target_url="https://www.et-expo.com/services/booth-design",
+            category="service",
+            priority="high",
+            search_volume=1200
+        ),
+        SEOKeyword(
+            user_id=user_id,
+            keyword="trade show booth builder USA",
+            target_url="https://www.et-expo.com/services/trade-show-booths",
+            category="service",
+            priority="high",
+            search_volume=880
+        ),
+        SEOKeyword(
+            user_id=user_id,
+            keyword="CES booth design",
+            target_url="https://www.et-expo.com/portfolio/ces-2026",
+            category="event",
+            priority="medium",
+            search_volume=590
+        ),
+        SEOKeyword(
+            user_id=user_id,
+            keyword="Las Vegas exhibit builder",
+            target_url="https://www.et-expo.com/locations/las-vegas",
+            category="location",
+            priority="medium",
+            search_volume=720
+        ),
+        SEOKeyword(
+            user_id=user_id,
+            keyword="custom exhibition booth design",
+            target_url="https://www.et-expo.com/services/custom-booths",
+            category="service",
+            priority="high",
+            search_volume=950
+        )
+    ]
+    
+    for keyword in demo_keywords:
+        db.add(keyword)
+    
+    # Demo competitors
+    demo_competitors = [
+        Competitor(
+            user_id=user_id,
+            name="Skyline Exhibits",
+            website="https://www.skylineehibits.com"
+        ),
+        Competitor(
+            user_id=user_id,
+            name="Freeman",
+            website="https://www.freeman.com"
+        ),
+        Competitor(
+            user_id=user_id,
+            name="GES",
+            website="https://www.ges.com"
+        ),
+        Competitor(
+            user_id=user_id,
+            name="Nimlok",
+            website="https://www.nimlok.com"
+        ),
+        Competitor(
+            user_id=user_id,
+            name="ExpoMarketing",
+            website="https://www.expomarketing.com"
+        )
+    ]
+    
+    for competitor in demo_competitors:
+        db.add(competitor)
     
     db.commit()

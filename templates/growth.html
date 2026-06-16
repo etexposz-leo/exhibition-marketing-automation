@@ -1,0 +1,590 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Growth Advisor | Marketing Automation</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/css/styles.css">
+    <style>
+        .growth-container { max-width: 1400px; margin: 0 auto; padding: 20px; }
+        .growth-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; flex-wrap: wrap; gap: 15px; }
+        .growth-title { font-size: 28px; font-weight: 700; color: #1a1a2e; }
+        .growth-subtitle { color: #666; font-size: 14px; margin-top: 4px; }
+        
+        .status-bar { display: flex; gap: 20px; margin-bottom: 20px; flex-wrap: wrap; }
+        .status-item { background: #f8f9fa; padding: 12px 20px; border-radius: 8px; display: flex; align-items: center; gap: 10px; }
+        .status-label { font-size: 12px; color: #666; }
+        .status-value { font-weight: 600; font-size: 14px; }
+        .status-badge { padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; }
+        .badge-mock { background: #fff3cd; color: #856404; }
+        .badge-live { background: #d4edda; color: #155724; }
+        
+        .metrics-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-bottom: 30px; }
+        .metric-card { background: white; border-radius: 12px; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+        .metric-label { font-size: 12px; color: #666; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px; }
+        .metric-value { font-size: 32px; font-weight: 700; color: #1a1a2e; }
+        .metric-change { font-size: 13px; margin-top: 8px; }
+        .metric-change.positive { color: #28a745; }
+        .metric-change.negative { color: #dc3545; }
+        
+        .section { background: white; border-radius: 12px; padding: 24px; margin-bottom: 24px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+        .section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .section-title { font-size: 18px; font-weight: 600; color: #1a1a2e; }
+        
+        .btn { padding: 10px 20px; border-radius: 8px; font-size: 14px; font-weight: 500; cursor: pointer; border: none; transition: all 0.2s; }
+        .btn-primary { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; }
+        .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4); }
+        .btn-secondary { background: #f0f0f0; color: #333; }
+        .btn-secondary:hover { background: #e0e0e0; }
+        .btn-success { background: #28a745; color: white; }
+        .btn-success:hover { background: #218838; }
+        .btn-danger { background: #dc3545; color: white; }
+        .btn-sm { padding: 6px 12px; font-size: 12px; }
+        
+        .keyword-form { display: grid; grid-template-columns: 1fr auto auto auto; gap: 10px; margin-bottom: 20px; }
+        .keyword-form input, .keyword-form select { padding: 10px 14px; border: 1px solid #ddd; border-radius: 8px; font-size: 14px; }
+        .keyword-form input:focus, .keyword-form select:focus { outline: none; border-color: #667eea; }
+        
+        .keywords-table { width: 100%; border-collapse: collapse; }
+        .keywords-table th { text-align: left; padding: 12px; border-bottom: 2px solid #eee; color: #666; font-size: 12px; text-transform: uppercase; }
+        .keywords-table td { padding: 14px 12px; border-bottom: 1px solid #eee; }
+        .keywords-table tr:hover { background: #f8f9fa; }
+        .priority-badge { padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; }
+        .priority-high { background: #ffe0e0; color: #c00; }
+        .priority-medium { background: #fff3cd; color: #856404; }
+        .priority-low { background: #e0e8ff; color: #4466aa; }
+        
+        .ai-visibility-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; }
+        .ai-card { border: 2px solid #eee; border-radius: 12px; padding: 20px; }
+        .ai-card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+        .ai-platform { font-weight: 600; font-size: 16px; }
+        .ai-score { font-size: 36px; font-weight: 700; }
+        .ai-score.low { color: #dc3545; }
+        .ai-score.medium { color: #ffc107; }
+        .ai-score.high { color: #28a745; }
+        .ai-bar { height: 8px; background: #eee; border-radius: 4px; margin-top: 10px; overflow: hidden; }
+        .ai-bar-fill { height: 100%; border-radius: 4px; transition: width 0.5s; }
+        
+        .recommendations-list { display: flex; flex-direction: column; gap: 16px; }
+        .recommendation-card { border: 1px solid #eee; border-radius: 10px; padding: 16px; }
+        .recommendation-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px; }
+        .recommendation-title { font-weight: 600; font-size: 15px; color: #1a1a2e; }
+        .recommendation-meta { display: flex; gap: 10px; align-items: center; }
+        .recommendation-desc { color: #666; font-size: 14px; line-height: 1.5; margin-bottom: 12px; }
+        .recommendation-actions { background: #f8f9fa; padding: 12px; border-radius: 6px; }
+        .recommendation-actions h4 { font-size: 12px; color: #666; margin-bottom: 8px; }
+        .recommendation-actions ul { margin: 0; padding-left: 20px; }
+        .recommendation-actions li { font-size: 13px; color: #333; margin-bottom: 4px; }
+        
+        .competitor-tags { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+        .competitor-tag { background: #e8e8e8; padding: 4px 10px; border-radius: 4px; font-size: 12px; color: #555; }
+        
+        .loading-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(255,255,255,0.9); display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 1000; }
+        .loading-spinner { width: 50px; height: 50px; border: 4px solid #eee; border-top-color: #667eea; border-radius: 50%; animation: spin 1s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .loading-text { margin-top: 16px; color: #666; font-size: 14px; }
+        
+        .empty-state { text-align: center; padding: 40px; color: #999; }
+        .empty-state-icon { font-size: 48px; margin-bottom: 16px; }
+        
+        @media (max-width: 768px) {
+            .keyword-form { grid-template-columns: 1fr; }
+            .metrics-grid { grid-template-columns: repeat(2, 1fr); }
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <nav class="sidebar">
+            <div class="sidebar-header">
+                <div class="logo">📢</div>
+                <span class="logo-text">Marketing</span>
+            </div>
+            <ul class="nav-menu">
+                <li><a href="/dashboard" class="nav-link">Dashboard</a></li>
+                <li><a href="/history" class="nav-link">History</a></li>
+                <li><a href="/settings" class="nav-link">Settings</a></li>
+                <li><a href="/growth" class="nav-link active">Growth Advisor</a></li>
+            </ul>
+            <div class="sidebar-footer">
+                <a href="/api/auth/logout" class="logout-link">Logout</a>
+            </div>
+        </nav>
+        
+        <main class="main-content">
+            <div class="growth-container">
+                <div class="growth-header">
+                    <div>
+                        <h1 class="growth-title">📊 Growth Advisor</h1>
+                        <p class="growth-subtitle">AI-powered SEO & visibility monitoring for exhibition booth companies</p>
+                    </div>
+                    <div style="display: flex; gap: 10px;">
+                        <button class="btn btn-success" onclick="runCheckNow()">🔄 Run Check Now</button>
+                        <button class="btn btn-secondary" onclick="exportData()">📥 Export CSV</button>
+                    </div>
+                </div>
+                
+                <!-- Status Bar -->
+                <div class="status-bar" id="statusBar">
+                    <div class="status-item">
+                        <span class="status-label">Google SEO</span>
+                        <span class="status-badge badge-mock" id="googleStatus">Mock Mode</span>
+                    </div>
+                    <div class="status-item">
+                        <span class="status-label">ChatGPT</span>
+                        <span class="status-badge badge-mock" id="chatgptStatus">Mock Mode</span>
+                    </div>
+                    <div class="status-item">
+                        <span class="status-label">DeepSeek</span>
+                        <span class="status-badge badge-mock" id="deepseekStatus">Mock Mode</span>
+                    </div>
+                </div>
+                
+                <!-- Metrics Grid -->
+                <div class="metrics-grid" id="metricsGrid">
+                    <div class="metric-card">
+                        <div class="metric-label">Keywords Tracked</div>
+                        <div class="metric-value" id="totalKeywords">0</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-label">Avg. Position</div>
+                        <div class="metric-value" id="avgPosition">-</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-label">ChatGPT Visibility</div>
+                        <div class="metric-value" id="chatgptScore">-</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-label">DeepSeek Visibility</div>
+                        <div class="metric-value" id="deepseekScore">-</div>
+                    </div>
+                </div>
+                
+                <!-- AI Visibility Section -->
+                <div class="section">
+                    <div class="section-header">
+                        <h2 class="section-title">🤖 AI Platform Visibility</h2>
+                    </div>
+                    <div class="ai-visibility-grid" id="aiVisibility">
+                        <div class="ai-card">
+                            <div class="ai-card-header">
+                                <span class="ai-platform">ChatGPT</span>
+                                <span class="ai-score" id="chatgptScoreBig">0</span>
+                            </div>
+                            <div style="font-size: 12px; color: #666;">Visibility Score</div>
+                            <div class="ai-bar">
+                                <div class="ai-bar-fill" id="chatgptBar" style="width: 0%; background: linear-gradient(90deg, #667eea, #764ba2);"></div>
+                            </div>
+                            <div class="competitor-tags" id="chatgptCompetitors"></div>
+                        </div>
+                        <div class="ai-card">
+                            <div class="ai-card-header">
+                                <span class="ai-platform">DeepSeek</span>
+                                <span class="ai-score" id="deepseekScoreBig">0</span>
+                            </div>
+                            <div style="font-size: 12px; color: #666;">Visibility Score</div>
+                            <div class="ai-bar">
+                                <div class="ai-bar-fill" id="deepseekBar" style="width: 0%; background: linear-gradient(90deg, #f093fb, #f5576c);"></div>
+                            </div>
+                            <div class="competitor-tags" id="deepseekCompetitors"></div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Keywords Section -->
+                <div class="section">
+                    <div class="section-header">
+                        <h2 class="section-title">🎯 Tracked Keywords</h2>
+                    </div>
+                    
+                    <div class="keyword-form">
+                        <input type="text" id="newKeyword" placeholder="Enter keyword (e.g., 'exhibition booth design company')">
+                        <input type="text" id="targetUrl" placeholder="Target URL (optional)">
+                        <select id="priority">
+                            <option value="high">High Priority</option>
+                            <option value="medium" selected>Medium Priority</option>
+                            <option value="low">Low Priority</option>
+                        </select>
+                        <button class="btn btn-primary" onclick="addKeyword()">Add Keyword</button>
+                    </div>
+                    
+                    <table class="keywords-table">
+                        <thead>
+                            <tr>
+                                <th>Keyword</th>
+                                <th>Category</th>
+                                <th>Priority</th>
+                                <th>Position</th>
+                                <th>CTR</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="keywordsTable">
+                            <tr><td colspan="6" class="empty-state">No keywords added yet</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                
+                <!-- Recommendations Section -->
+                <div class="section">
+                    <div class="section-header">
+                        <h2 class="section-title">💡 Daily Recommendations</h2>
+                        <select id="recFilter" onchange="loadRecommendations()" style="padding: 8px 12px; border: 1px solid #ddd; border-radius: 6px;">
+                            <option value="">All</option>
+                            <option value="pending">Pending</option>
+                            <option value="in_progress">In Progress</option>
+                            <option value="completed">Completed</option>
+                        </select>
+                    </div>
+                    <div class="recommendations-list" id="recommendationsList">
+                        <div class="empty-state">
+                            <div class="empty-state-icon">📋</div>
+                            <p>Run a check to generate recommendations</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Daily Report Section -->
+                <div class="section">
+                    <div class="section-header">
+                        <h2 class="section-title">📈 Latest Report</h2>
+                    </div>
+                    <div id="reportContent">
+                        <div class="empty-state">
+                            <div class="empty-state-icon">📊</div>
+                            <p>No reports generated yet. Run a check to generate your first report.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+    
+    <div class="loading-overlay" id="loadingOverlay" style="display: none;">
+        <div class="loading-spinner"></div>
+        <div class="loading-text" id="loadingText">Running growth check...</div>
+    </div>
+    
+    <script>
+        let keywords = [];
+        let recommendations = [];
+        let report = null;
+        let seoMetrics = [];
+        let aiMetrics = { chatgpt: [], deepseek: [] };
+        
+        // Load initial data
+        document.addEventListener('DOMContentLoaded', () => {
+            loadGrowthStatus();
+            loadKeywords();
+            loadRecommendations();
+            loadReport();
+            loadMetrics();
+        });
+        
+        async function loadGrowthStatus() {
+            try {
+                const resp = await fetch('/api/growth/status');
+                const data = await resp.json();
+                
+                document.getElementById('googleStatus').textContent = data.google_seo.mock_mode ? 'Mock Mode' : 'Live';
+                document.getElementById('googleStatus').className = 'status-badge ' + (data.google_seo.mock_mode ? 'badge-mock' : 'badge-live');
+                
+                document.getElementById('chatgptStatus').textContent = data.chatgpt.mock_mode ? 'Mock Mode' : 'Live';
+                document.getElementById('chatgptStatus').className = 'status-badge ' + (data.chatgpt.mock_mode ? 'badge-mock' : 'badge-live');
+                
+                document.getElementById('deepseekStatus').textContent = data.deepseek.mock_mode ? 'Mock Mode' : 'Live';
+                document.getElementById('deepseekStatus').className = 'status-badge ' + (data.deepseek.mock_mode ? 'badge-mock' : 'badge-live');
+                
+                document.getElementById('totalKeywords').textContent = data.user_data.keywords_tracked;
+            } catch (e) {
+                console.error('Error loading status:', e);
+            }
+        }
+        
+        async function loadKeywords() {
+            try {
+                const resp = await fetch('/api/growth/keywords');
+                keywords = await resp.json();
+                renderKeywords();
+            } catch (e) {
+                console.error('Error loading keywords:', e);
+            }
+        }
+        
+        function renderKeywords() {
+            const tbody = document.getElementById('keywordsTable');
+            if (keywords.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="6" class="empty-state">No keywords added yet</td></tr>';
+                return;
+            }
+            
+            tbody.innerHTML = keywords.map(k => `
+                <tr>
+                    <td><strong>${escapeHtml(k.keyword)}</strong></td>
+                    <td>${k.category || '-'}</td>
+                    <td><span class="priority-badge priority-${k.priority}">${k.priority}</span></td>
+                    <td>-</td>
+                    <td>-</td>
+                    <td>
+                        <button class="btn btn-danger btn-sm" onclick="deleteKeyword(${k.id})">Delete</button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+        
+        async function addKeyword() {
+            const keyword = document.getElementById('newKeyword').value.trim();
+            const targetUrl = document.getElementById('targetUrl').value.trim();
+            const priority = document.getElementById('priority').value;
+            
+            if (!keyword) {
+                alert('Please enter a keyword');
+                return;
+            }
+            
+            try {
+                const resp = await fetch('/api/growth/keywords', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ keyword, target_url: targetUrl, priority })
+                });
+                
+                if (resp.ok) {
+                    document.getElementById('newKeyword').value = '';
+                    document.getElementById('targetUrl').value = '';
+                    loadKeywords();
+                    loadGrowthStatus();
+                }
+            } catch (e) {
+                console.error('Error adding keyword:', e);
+            }
+        }
+        
+        async function deleteKeyword(id) {
+            if (!confirm('Delete this keyword?')) return;
+            
+            try {
+                await fetch(`/api/growth/keywords/${id}`, { method: 'DELETE' });
+                loadKeywords();
+                loadGrowthStatus();
+            } catch (e) {
+                console.error('Error deleting keyword:', e);
+            }
+        }
+        
+        async function loadRecommendations() {
+            const filter = document.getElementById('recFilter').value;
+            let url = '/api/growth/recommendations';
+            if (filter) url += `?status=${filter}`;
+            
+            try {
+                const resp = await fetch(url);
+                recommendations = await resp.json();
+                renderRecommendations();
+            } catch (e) {
+                console.error('Error loading recommendations:', e);
+            }
+        }
+        
+        function renderRecommendations() {
+            const container = document.getElementById('recommendationsList');
+            if (recommendations.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-state-icon">📋</div>
+                        <p>No recommendations yet. Run a check to generate recommendations.</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            container.innerHTML = recommendations.map(r => `
+                <div class="recommendation-card">
+                    <div class="recommendation-header">
+                        <span class="recommendation-title">${escapeHtml(r.title)}</span>
+                        <div class="recommendation-meta">
+                            <span class="priority-badge priority-${r.priority}">${r.priority}</span>
+                            <span style="font-size: 12px; color: #999;">${formatDate(r.created_at)}</span>
+                        </div>
+                    </div>
+                    <p class="recommendation-desc">${escapeHtml(r.description)}</p>
+                    <div class="recommendation-actions">
+                        <h4>Action Items</h4>
+                        <ul>
+                            ${(r.action_items || []).map(a => `<li>${escapeHtml(a)}</li>`).join('')}
+                        </ul>
+                    </div>
+                    <div style="margin-top: 12px; display: flex; gap: 8px;">
+                        <button class="btn btn-sm btn-success" onclick="updateRecStatus(${r.id}, 'in_progress')">Start</button>
+                        <button class="btn btn-sm btn-secondary" onclick="updateRecStatus(${r.id}, 'completed')">Done</button>
+                        <button class="btn btn-sm btn-secondary" onclick="updateRecStatus(${r.id}, 'dismissed')">Dismiss</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+        
+        async function updateRecStatus(id, status) {
+            try {
+                await fetch(`/api/growth/recommendations/${id}/status?status=${status}`, { method: 'PUT' });
+                loadRecommendations();
+            } catch (e) {
+                console.error('Error updating status:', e);
+            }
+        }
+        
+        async function loadReport() {
+            try {
+                const resp = await fetch('/api/growth/report');
+                if (resp.ok) {
+                    report = await resp.json();
+                    renderReport();
+                }
+            } catch (e) {
+                console.error('Error loading report:', e);
+            }
+        }
+        
+        function renderReport() {
+            const container = document.getElementById('reportContent');
+            if (!report) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-state-icon">📊</div>
+                        <p>No reports generated yet. Run a check to generate your first report.</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            container.innerHTML = `
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 16px; margin-bottom: 20px;">
+                    <div style="text-align: center; padding: 16px; background: #f8f9fa; border-radius: 8px;">
+                        <div style="font-size: 24px; font-weight: 700;">${report.total_keywords}</div>
+                        <div style="font-size: 12px; color: #666;">Keywords</div>
+                    </div>
+                    <div style="text-align: center; padding: 16px; background: #f8f9fa; border-radius: 8px;">
+                        <div style="font-size: 24px; font-weight: 700;">${report.avg_position}</div>
+                        <div style="font-size: 12px; color: #666;">Avg Position</div>
+                    </div>
+                    <div style="text-align: center; padding: 16px; background: #f8f9fa; border-radius: 8px;">
+                        <div style="font-size: 24px; font-weight: 700;">${report.avg_ctr}%</div>
+                        <div style="font-size: 12px; color: #666;">CTR</div>
+                    </div>
+                    <div style="text-align: center; padding: 16px; background: #f8f9fa; border-radius: 8px;">
+                        <div style="font-size: 24px; font-weight: 700;">${report.keywords_improved}</div>
+                        <div style="font-size: 12px; color: #28a745;">Improved</div>
+                    </div>
+                    <div style="text-align: center; padding: 16px; background: #f8f9fa; border-radius: 8px;">
+                        <div style="font-size: 24px; font-weight: 700;">${report.keywords_declined}</div>
+                        <div style="font-size: 12px; color: #dc3545;">Declined</div>
+                    </div>
+                </div>
+                <h4 style="margin-bottom: 12px;">7-Day Action Plan</h4>
+                <ul style="padding-left: 20px;">
+                    ${(report.action_plan || []).map(a => `<li style="margin-bottom: 8px;">${escapeHtml(a)}</li>`).join('')}
+                </ul>
+            `;
+            
+            // Update metrics
+            document.getElementById('avgPosition').textContent = report.avg_position || '-';
+            document.getElementById('chatgptScore').textContent = report.chatgpt_score || '-';
+            document.getElementById('deepseekScore').textContent = report.deepseek_score || '-';
+        }
+        
+        async function loadMetrics() {
+            try {
+                const seoResp = await fetch('/api/growth/metrics/seo');
+                seoMetrics = await seoResp.json();
+                
+                const aiResp = await fetch('/api/growth/metrics/ai-visibility');
+                aiMetrics = await aiResp.json();
+                
+                renderAIVisibility();
+            } catch (e) {
+                console.error('Error loading metrics:', e);
+            }
+        }
+        
+        function renderAIVisibility() {
+            const chatgptChecks = aiMetrics.filter(m => m.ai_platform === 'chatgpt').slice(0, 5);
+            const deepseekChecks = aiMetrics.filter(m => m.ai_platform === 'deepseek').slice(0, 5);
+            
+            const avgChatgpt = chatgptChecks.length ? Math.round(chatgptChecks.reduce((a, b) => a + b.visibility_score, 0) / chatgptChecks.length) : 0;
+            const avgDeepseek = deepseekChecks.length ? Math.round(deepseekChecks.reduce((a, b) => a + b.visibility_score, 0) / deepseekChecks.length) : 0;
+            
+            document.getElementById('chatgptScoreBig').textContent = avgChatgpt;
+            document.getElementById('chatgptScoreBig').className = 'ai-score ' + (avgChatgpt >= 60 ? 'high' : avgChatgpt >= 30 ? 'medium' : 'low');
+            document.getElementById('chatgptBar').style.width = avgChatgpt + '%';
+            
+            document.getElementById('deepseekScoreBig').textContent = avgDeepseek;
+            document.getElementById('deepseekScoreBig').className = 'ai-score ' + (avgDeepseek >= 60 ? 'high' : avgDeepseek >= 30 ? 'medium' : 'low');
+            document.getElementById('deepseekBar').style.width = avgDeepseek + '%';
+            
+            // Show competitors
+            const chatgptComps = [...new Set(chatgptChecks.flatMap(c => c.competitors_mentioned || []))];
+            const deepseekComps = [...new Set(deepseekChecks.flatMap(c => c.competitors_mentioned || []))];
+            
+            document.getElementById('chatgptCompetitors').innerHTML = chatgptComps.slice(0, 5).map(c => 
+                `<span class="competitor-tag">${escapeHtml(c)}</span>`
+            ).join('');
+            
+            document.getElementById('deepseekCompetitors').innerHTML = deepseekComps.slice(0, 5).map(c => 
+                `<span class="competitor-tag">${escapeHtml(c)}</span>`
+            ).join('');
+        }
+        
+        async function runCheckNow() {
+            if (keywords.length === 0) {
+                alert('Please add some keywords first before running a check.');
+                return;
+            }
+            
+            showLoading('Running growth check... This may take a minute.');
+            
+            try {
+                const resp = await fetch('/api/growth/check-now', { method: 'POST' });
+                const result = await resp.json();
+                
+                if (result.success) {
+                    await loadKeywords();
+                    await loadRecommendations();
+                    await loadReport();
+                    await loadMetrics();
+                    await loadGrowthStatus();
+                    showLoading('Growth check completed!');
+                }
+            } catch (e) {
+                console.error('Error running check:', e);
+                alert('Error running growth check');
+            } finally {
+                setTimeout(hideLoading, 1500);
+            }
+        }
+        
+        async function exportData() {
+            window.location.href = '/api/growth/keywords?format=csv';
+        }
+        
+        function showLoading(text) {
+            document.getElementById('loadingText').textContent = text;
+            document.getElementById('loadingOverlay').style.display = 'flex';
+        }
+        
+        function hideLoading() {
+            document.getElementById('loadingOverlay').style.display = 'none';
+        }
+        
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+        
+        function formatDate(dateStr) {
+            const d = new Date(dateStr);
+            return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+        }
+    </script>
+</body>
+</html>

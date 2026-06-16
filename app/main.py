@@ -7,6 +7,7 @@ import os
 
 from app.api.routes import router as api_router
 from app.api.auth_routes import router as auth_router
+from app.api.growth_routes import router as growth_router
 from app.core.database import engine, Base, SessionLocal
 from app.core.config import enforce_production_config, print_config_status
 from app.services.scheduler import start_scheduler, stop_scheduler
@@ -64,6 +65,7 @@ app.mount("/static", StaticFiles(directory=str(BASE_DIR / "static")), name="stat
 # Include API routes
 app.include_router(api_router, prefix="/api")
 app.include_router(auth_router, prefix="/api")
+app.include_router(growth_router, prefix="/api")
 
 # Serve main page
 @app.get("/")
@@ -108,6 +110,14 @@ async def history_page(request: Request):
     if not request.session.get("user_id"):
         return RedirectResponse(url="/login")
     return FileResponse(str(BASE_DIR / "templates" / "history.html"))
+
+
+@app.get("/growth")
+async def growth_page(request: Request):
+    """Growth Advisor page - requires authentication."""
+    if not request.session.get("user_id"):
+        return RedirectResponse(url="/login")
+    return FileResponse(str(BASE_DIR / "templates" / "growth.html"))
 
 
 if __name__ == "__main__":

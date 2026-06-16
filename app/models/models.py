@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Text, DateTime, Boolean, Enum as SQLEnum
+from sqlalchemy import Column, Integer, String, Text, DateTime, Boolean, Enum as SQLEnum, Float, Date
 from datetime import datetime
 from app.core.database import Base
 import enum
@@ -140,3 +140,120 @@ class ContentTemplate(Base):
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+# ==================== Growth Advisor Models ====================
+
+
+class SEOKeyword(Base):
+    """SEO keywords to track for growth monitoring."""
+    __tablename__ = "seo_keywords"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, nullable=False, index=True)
+    keyword = Column(String(500), nullable=False)
+    target_url = Column(String(500), nullable=True)
+    category = Column(String(100), nullable=True)  # e.g., "brand", "service", "location"
+    priority = Column(String(20), default="medium")  # high, medium, low
+    status = Column(String(20), default="active")  # active, paused, negative
+    search_volume = Column(Integer, nullable=True)  # Estimated monthly searches
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class KeywordRankingCheck(Base):
+    """Google SEO ranking check history."""
+    __tablename__ = "keyword_ranking_checks"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, nullable=False, index=True)
+    keyword_id = Column(Integer, nullable=False, index=True)
+    keyword = Column(String(500), nullable=False)
+    position = Column(Integer, nullable=True)  # Current ranking position
+    previous_position = Column(Integer, nullable=True)  # Previous ranking
+    impressions = Column(Integer, default=0)
+    clicks = Column(Integer, default=0)
+    ctr = Column(Float, default=0.0)  # Click-through rate
+    avg_position = Column(Float, default=0.0)
+    search_volume = Column(Integer, nullable=True)
+    checked_at = Column(DateTime, default=datetime.utcnow)
+    source = Column(String(50), default="mock")  # google_api, mock
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class AIVisibilityCheck(Base):
+    """AI visibility check history (ChatGPT, DeepSeek)."""
+    __tablename__ = "ai_visibility_checks"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, nullable=False, index=True)
+    keyword_id = Column(Integer, nullable=False, index=True)
+    keyword = Column(String(500), nullable=False)
+    ai_platform = Column(String(50), nullable=False)  # chatgpt, deepseek
+    visibility_score = Column(Integer, default=0)  # 0-100
+    is_visible = Column(Boolean, default=False)  # Is our brand mentioned?
+    brand_mentioned = Column(String(500), nullable=True)  # Which brand was mentioned
+    answer_excerpt = Column(Text, nullable=True)  # Relevant part of AI answer
+    competitors_mentioned = Column(Text, nullable=True)  # JSON array of competitors
+    checked_at = Column(DateTime, default=datetime.utcnow)
+    source = Column(String(50), default="mock")  # openai_api, deepseek_api, mock
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class GrowthRecommendation(Base):
+    """AI-generated growth recommendations."""
+    __tablename__ = "growth_recommendations"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, nullable=False, index=True)
+    recommendation_type = Column(String(100), nullable=False)  # content, technical, social, local_seo
+    priority = Column(String(20), default="medium")  # high, medium, low
+    title = Column(String(300), nullable=False)
+    description = Column(Text, nullable=False)
+    action_items = Column(Text, nullable=True)  # JSON array of action steps
+    expected_impact = Column(String(100), nullable=True)  # high, medium, low
+    status = Column(String(20), default="pending")  # pending, in_progress, completed, dismissed
+    due_date = Column(DateTime, nullable=True)
+    completed_at = Column(DateTime, nullable=True)
+    report_date = Column(DateTime, default=datetime.utcnow)  # Which daily report this belongs to
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class Competitor(Base):
+    """Competitor tracking."""
+    __tablename__ = "competitors"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, nullable=False, index=True)
+    name = Column(String(200), nullable=False)
+    website = Column(String(500), nullable=True)
+    mention_count = Column(Integer, default=0)  # Times mentioned in AI
+    last_mentioned_at = Column(DateTime, nullable=True)
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class DailyGrowthReport(Base):
+    """Daily growth report summary."""
+    __tablename__ = "daily_growth_reports"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, nullable=False, index=True)
+    report_date = Column(Date, nullable=False)
+    total_keywords = Column(Integer, default=0)
+    avg_ranking_position = Column(Float, default=0.0)
+    avg_ctr = Column(Float, default=0.0)
+    total_impressions = Column(Integer, default=0)
+    total_clicks = Column(Integer, default=0)
+    chatgpt_visibility_score = Column(Integer, default=0)
+    deepseek_visibility_score = Column(Integer, default=0)
+    keywords_improved = Column(Integer, default=0)
+    keywords_declined = Column(Integer, default=0)
+    competitors_mentioned = Column(Integer, default=0)
+    top_keyword = Column(String(500), nullable=True)
+    top_competitor = Column(String(200), nullable=True)
+    summary = Column(Text, nullable=True)
+    action_plan = Column(Text, nullable=True)  # JSON array of next steps
+    created_at = Column(DateTime, default=datetime.utcnow)
