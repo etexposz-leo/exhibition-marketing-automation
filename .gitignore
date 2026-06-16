@@ -85,3 +85,5 @@ Thumbs.db
 
 # Local configuration
 marketing_automation.db
+cookies.txt
+server*.log
