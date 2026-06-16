@@ -1,9 +1,10 @@
 from fastapi import FastAPI, Request
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse, RedirectResponse
+from fastapi.responses import FileResponse, RedirectResponse, HTMLResponse
 from pathlib import Path
 from contextlib import asynccontextmanager
 import os
+import jinja2
 
 from app.api.routes import router as api_router
 from app.api.auth_routes import router as auth_router
@@ -14,6 +15,21 @@ from app.core.config import enforce_production_config, print_config_status
 from app.services.scheduler import start_scheduler, stop_scheduler
 from app.core.auth import create_demo_account
 from starlette.middleware.sessions import SessionMiddleware
+
+# Template directory
+BASE_DIR = Path(__file__).resolve().parent.parent
+
+# Create Jinja2 environment
+jinja_env = jinja2.Environment(
+    loader=jinja2.FileSystemLoader(str(BASE_DIR / "templates")),
+    autoescape=jinja2.select_autoescape(['html', 'xml'])
+)
+
+def render_template(template_name: str, context: dict = None) -> HTMLResponse:
+    """Render a Jinja2 template and return HTML response."""
+    template = jinja_env.get_template(template_name)
+    html_content = template.render(context or {})
+    return HTMLResponse(content=html_content)
 
 
 @asynccontextmanager
@@ -60,7 +76,6 @@ app.add_middleware(
 Base.metadata.create_all(bind=engine)
 
 # Mount static files
-BASE_DIR = Path(__file__).resolve().parent.parent
 app.mount("/static", StaticFiles(directory=str(BASE_DIR / "static")), name="static")
 
 # Include API routes
@@ -75,7 +90,7 @@ async def root(request: Request):
     """Main page - requires authentication."""
     if not request.session.get("user_id"):
         return RedirectResponse(url="/login")
-    return FileResponse(str(BASE_DIR / "templates" / "index.html"))
+    return RedirectResponse(url="/dashboard")
 
 
 @app.get("/login")
@@ -95,7 +110,7 @@ async def settings_page(request: Request):
     """Settings page - requires authentication."""
     if not request.session.get("user_id"):
         return RedirectResponse(url="/login")
-    return FileResponse(str(BASE_DIR / "templates" / "settings.html"))
+    return render_template("settings.html", {"request": request})
 
 
 @app.get("/dashboard")
@@ -103,7 +118,7 @@ async def dashboard_page(request: Request):
     """Dashboard page - requires authentication."""
     if not request.session.get("user_id"):
         return RedirectResponse(url="/login")
-    return FileResponse(str(BASE_DIR / "templates" / "dashboard.html"))
+    return render_template("dashboard.html", {"request": request})
 
 
 @app.get("/history")
@@ -111,7 +126,7 @@ async def history_page(request: Request):
     """History page - requires authentication."""
     if not request.session.get("user_id"):
         return RedirectResponse(url="/login")
-    return FileResponse(str(BASE_DIR / "templates" / "history.html"))
+    return render_template("history.html", {"request": request})
 
 
 @app.get("/growth")
@@ -119,7 +134,7 @@ async def growth_page(request: Request):
     """Growth Advisor page - requires authentication."""
     if not request.session.get("user_id"):
         return RedirectResponse(url="/login")
-    return FileResponse(str(BASE_DIR / "templates" / "growth.html"))
+    return render_template("growth.html", {"request": request})
 
 
 @app.get("/knowledge-base")
@@ -127,7 +142,15 @@ async def knowledge_base_page(request: Request):
     """Knowledge Base page - requires authentication."""
     if not request.session.get("user_id"):
         return RedirectResponse(url="/login")
-    return FileResponse(str(BASE_DIR / "templates" / "knowledge_base.html"))
+    return render_template("knowledge_base.html", {"request": request})
+
+
+@app.get("/marketing")
+async def marketing_page(request: Request):
+    """Marketing Automation page - requires authentication."""
+    if not request.session.get("user_id"):
+        return RedirectResponse(url="/login")
+    return RedirectResponse(url="/dashboard")
 
 
 if __name__ == "__main__":
