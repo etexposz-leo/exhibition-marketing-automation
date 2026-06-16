@@ -83,6 +83,7 @@ The demo account comes with:
 | `/settings` | API keys and platform settings |
 | `/history` | Publishing history |
 | `/growth` | Growth Advisor (SEO & AI visibility) |
+| `/knowledge-base` | Knowledge Base (RAG) - Upload manuals, query compliance rules |
 
 ## API Endpoints
 
@@ -116,6 +117,17 @@ The demo account comes with:
 | `/api/scheduled-posts` | GET | List scheduled posts |
 | `/api/scheduled-posts` | POST | Create scheduled post |
 | `/api/scheduled-posts/{id}` | DELETE | Delete scheduled post |
+
+### Knowledge Base / RAG
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/rag/documents` | GET | List uploaded documents |
+| `/api/rag/documents/upload` | POST | Upload document (PDF, DOCX, TXT) |
+| `/api/rag/documents/{id}` | DELETE | Delete document |
+| `/api/rag/ask` | POST | Ask question using RAG |
+| `/api/rag/queries` | GET | List query history |
+| `/api/rag/status` | GET | Get RAG system status |
+| `/api/rag/load-demo` | POST | Load demo content (demo@example.com only) |
 
 ### Settings
 | Endpoint | Method | Description |

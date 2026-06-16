@@ -257,3 +257,90 @@ class DailyGrowthReport(Base):
     summary = Column(Text, nullable=True)
     action_plan = Column(Text, nullable=True)  # JSON array of next steps
     created_at = Column(DateTime, default=datetime.utcnow)
+
+
+# ==================== Knowledge Base / RAG Models ====================
+
+
+class Document(Base):
+    """Uploaded documents for Knowledge Base RAG."""
+    __tablename__ = "documents"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, nullable=False, index=True)
+    title = Column(String(500), nullable=False)
+    filename = Column(String(500), nullable=False)
+    document_type = Column(String(100), nullable=True)  # exhibitor_manual, venue_rules, fire_safety, electrical, hanging_signs, labor_rules, booth_design, other
+    event_name = Column(String(300), nullable=True)  # CES, NAB, InfoComm, etc.
+    venue_name = Column(String(300), nullable=True)
+    year = Column(Integer, nullable=True)
+    file_size = Column(Integer, nullable=True)  # bytes
+    file_path = Column(String(500), nullable=True)  # Storage path
+    status = Column(String(50), default="processing")  # processing, indexed, error
+    chunk_count = Column(Integer, default=0)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class DocumentChunk(Base):
+    """Document chunks for RAG retrieval."""
+    __tablename__ = "document_chunks"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, nullable=False, index=True)
+    document_id = Column(Integer, nullable=False, index=True)
+    chunk_index = Column(Integer, nullable=False)
+    content = Column(Text, nullable=False)
+    metadata_json = Column(Text, nullable=True)  # JSON with additional metadata
+    embedding = Column(Text, nullable=True)  # Vector embedding (stored as JSON string for SQLite compatibility)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class RAGQuery(Base):
+    """RAG query history with answers."""
+    __tablename__ = "rag_queries"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, nullable=False, index=True)
+    question = Column(Text, nullable=False)
+    answer = Column(Text, nullable=False)
+    sources_json = Column(Text, nullable=True)  # JSON array of source documents/chunks
+    provider = Column(String(50), default="mock")  # mock, openai, deepseek, nvidia
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+# ==================== Compliance Models ====================
+
+
+class ComplianceProject(Base):
+    """Compliance checking project."""
+    __tablename__ = "compliance_projects"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, nullable=False, index=True)
+    name = Column(String(300), nullable=False)
+    event_name = Column(String(300), nullable=True)
+    venue_name = Column(String(300), nullable=True)
+    booth_size = Column(String(100), nullable=True)  # e.g., "20x20"
+    booth_height = Column(Float, nullable=True)
+    status = Column(String(50), default="draft")  # draft, checking, passed, failed
+    compliance_score = Column(Integer, nullable=True)  # 0-100
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class ComplianceViolation(Base):
+    """Compliance violation records."""
+    __tablename__ = "compliance_violations"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, nullable=False, index=True)
+    project_id = Column(Integer, nullable=False, index=True)
+    rule_name = Column(String(300), nullable=False)
+    rule_source = Column(String(200), nullable=True)  # Document reference
+    severity = Column(String(20), default="warning")  # critical, warning, info
+    description = Column(Text, nullable=True)
+    recommendation = Column(Text, nullable=True)
+    is_resolved = Column(Boolean, default=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    resolved_at = Column(DateTime, nullable=True)
