@@ -55,7 +55,7 @@
         .priority-medium { background: #fff3cd; color: #856404; }
         .priority-low { background: #e0e8ff; color: #4466aa; }
         
-        .ai-visibility-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; }
+        .ai-visibility-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; }
         .ai-card { border: 2px solid #eee; border-radius: 12px; padding: 20px; }
         .ai-card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
         .ai-platform { font-weight: 600; font-size: 16px; }
@@ -65,6 +65,10 @@
         .ai-score.high { color: #28a745; }
         .ai-bar { height: 8px; background: #eee; border-radius: 4px; margin-top: 10px; overflow: hidden; }
         .ai-bar-fill { height: 100%; border-radius: 4px; transition: width 0.5s; }
+        
+        .chart-container { margin-top: 20px; padding: 16px; background: #f8f9fa; border-radius: 8px; }
+        .chart-title { font-size: 14px; font-weight: 600; margin-bottom: 12px; color: #333; }
+        canvas { max-width: 100%; }
         
         .recommendations-list { display: flex; flex-direction: column; gap: 16px; }
         .recommendation-card { border: 1px solid #eee; border-radius: 10px; padding: 16px; }
@@ -139,6 +143,10 @@
                         <span class="status-label">DeepSeek</span>
                         <span class="status-badge badge-mock" id="deepseekStatus">Mock Mode</span>
                     </div>
+                    <div class="status-item">
+                        <span class="status-label">Perplexity</span>
+                        <span class="status-badge badge-mock" id="perplexityStatus">Mock Mode</span>
+                    </div>
                 </div>
                 
                 <!-- Metrics Grid -->
@@ -158,6 +166,10 @@
                     <div class="metric-card">
                         <div class="metric-label">DeepSeek Visibility</div>
                         <div class="metric-value" id="deepseekScore">-</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-label">Perplexity Visibility</div>
+                        <div class="metric-value" id="perplexityScore">-</div>
                     </div>
                 </div>
                 
@@ -189,6 +201,33 @@
                             </div>
                             <div class="competitor-tags" id="deepseekCompetitors"></div>
                         </div>
+                        <div class="ai-card">
+                            <div class="ai-card-header">
+                                <span class="ai-platform">Perplexity</span>
+                                <span class="ai-score" id="perplexityScoreBig">0</span>
+                            </div>
+                            <div style="font-size: 12px; color: #666;">Visibility Score</div>
+                            <div class="ai-bar">
+                                <div class="ai-bar-fill" id="perplexityBar" style="width: 0%; background: linear-gradient(90deg, #4facfe, #00f2fe);"></div>
+                            </div>
+                            <div class="competitor-tags" id="perplexityCompetitors"></div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Trend Charts Section -->
+                <div class="section">
+                    <div class="section-header">
+                        <h2 class="section-title">📈 Visibility Trends</h2>
+                        <select id="trendDays" onchange="loadTrends()" style="padding: 8px; border-radius: 6px; border: 1px solid #ddd;">
+                            <option value="7">Last 7 days</option>
+                            <option value="14">Last 14 days</option>
+                            <option value="30" selected>Last 30 days</option>
+                        </select>
+                    </div>
+                    <div class="chart-container">
+                        <div class="chart-title">AI Platform Visibility Scores</div>
+                        <canvas id="visibilityChart" height="200"></canvas>
                     </div>
                 </div>
                 
@@ -266,12 +305,14 @@
         <div class="loading-text" id="loadingText">Running growth check...</div>
     </div>
     
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script>
         let keywords = [];
         let recommendations = [];
         let report = null;
         let seoMetrics = [];
-        let aiMetrics = { chatgpt: [], deepseek: [] };
+        let aiMetrics = { chatgpt: [], deepseek: [], perplexity: [] };
+        let visibilityChart = null;
         
         // Load initial data
         document.addEventListener('DOMContentLoaded', () => {
@@ -280,6 +321,7 @@
             loadRecommendations();
             loadReport();
             loadMetrics();
+            loadTrends();
         });
         
         async function loadGrowthStatus() {
@@ -295,6 +337,9 @@
                 
                 document.getElementById('deepseekStatus').textContent = data.deepseek.mock_mode ? 'Mock Mode' : 'Live';
                 document.getElementById('deepseekStatus').className = 'status-badge ' + (data.deepseek.mock_mode ? 'badge-mock' : 'badge-live');
+                
+                document.getElementById('perplexityStatus').textContent = data.perplexity.mock_mode ? 'Mock Mode' : 'Live';
+                document.getElementById('perplexityStatus').className = 'status-badge ' + (data.perplexity.mock_mode ? 'badge-mock' : 'badge-live');
                 
                 document.getElementById('totalKeywords').textContent = data.user_data.keywords_tracked;
             } catch (e) {
@@ -490,6 +535,7 @@
             document.getElementById('avgPosition').textContent = report.avg_position || '-';
             document.getElementById('chatgptScore').textContent = report.chatgpt_score || '-';
             document.getElementById('deepseekScore').textContent = report.deepseek_score || '-';
+            document.getElementById('perplexityScore').textContent = report.perplexity_score || '-';
         }
         
         async function loadMetrics() {
@@ -509,9 +555,11 @@
         function renderAIVisibility() {
             const chatgptChecks = aiMetrics.filter(m => m.ai_platform === 'chatgpt').slice(0, 5);
             const deepseekChecks = aiMetrics.filter(m => m.ai_platform === 'deepseek').slice(0, 5);
+            const perplexityChecks = aiMetrics.filter(m => m.ai_platform === 'perplexity').slice(0, 5);
             
             const avgChatgpt = chatgptChecks.length ? Math.round(chatgptChecks.reduce((a, b) => a + b.visibility_score, 0) / chatgptChecks.length) : 0;
             const avgDeepseek = deepseekChecks.length ? Math.round(deepseekChecks.reduce((a, b) => a + b.visibility_score, 0) / deepseekChecks.length) : 0;
+            const avgPerplexity = perplexityChecks.length ? Math.round(perplexityChecks.reduce((a, b) => a + b.visibility_score, 0) / perplexityChecks.length) : 0;
             
             document.getElementById('chatgptScoreBig').textContent = avgChatgpt;
             document.getElementById('chatgptScoreBig').className = 'ai-score ' + (avgChatgpt >= 60 ? 'high' : avgChatgpt >= 30 ? 'medium' : 'low');
@@ -521,9 +569,14 @@
             document.getElementById('deepseekScoreBig').className = 'ai-score ' + (avgDeepseek >= 60 ? 'high' : avgDeepseek >= 30 ? 'medium' : 'low');
             document.getElementById('deepseekBar').style.width = avgDeepseek + '%';
             
+            document.getElementById('perplexityScoreBig').textContent = avgPerplexity;
+            document.getElementById('perplexityScoreBig').className = 'ai-score ' + (avgPerplexity >= 60 ? 'high' : avgPerplexity >= 30 ? 'medium' : 'low');
+            document.getElementById('perplexityBar').style.width = avgPerplexity + '%';
+            
             // Show competitors
             const chatgptComps = [...new Set(chatgptChecks.flatMap(c => c.competitors_mentioned || []))];
             const deepseekComps = [...new Set(deepseekChecks.flatMap(c => c.competitors_mentioned || []))];
+            const perplexityComps = [...new Set(perplexityChecks.flatMap(c => c.competitors_mentioned || []))];
             
             document.getElementById('chatgptCompetitors').innerHTML = chatgptComps.slice(0, 5).map(c => 
                 `<span class="competitor-tag">${escapeHtml(c)}</span>`
@@ -532,6 +585,85 @@
             document.getElementById('deepseekCompetitors').innerHTML = deepseekComps.slice(0, 5).map(c => 
                 `<span class="competitor-tag">${escapeHtml(c)}</span>`
             ).join('');
+            
+            document.getElementById('perplexityCompetitors').innerHTML = perplexityComps.slice(0, 5).map(c => 
+                `<span class="competitor-tag">${escapeHtml(c)}</span>`
+            ).join('');
+        }
+        
+        async function loadTrends() {
+            const days = document.getElementById('trendDays').value;
+            try {
+                const resp = await fetch(`/api/growth/trends/visibility?days=${days}`);
+                if (resp.ok) {
+                    const data = await resp.json();
+                    renderVisibilityChart(data);
+                }
+            } catch (e) {
+                console.error('Error loading trends:', e);
+            }
+        }
+        
+        function renderVisibilityChart(data) {
+            const ctx = document.getElementById('visibilityChart').getContext('2d');
+            
+            // Extract dates from one of the platforms
+            const dates = data.chatgpt ? data.chatgpt.map(d => d.date) : [];
+            
+            // Prepare datasets
+            const datasets = [
+                {
+                    label: 'ChatGPT',
+                    data: data.chatgpt ? data.chatgpt.map(d => d.score) : [],
+                    borderColor: '#667eea',
+                    backgroundColor: 'rgba(102, 126, 234, 0.1)',
+                    fill: true,
+                    tension: 0.4
+                },
+                {
+                    label: 'DeepSeek',
+                    data: data.deepseek ? data.deepseek.map(d => d.score) : [],
+                    borderColor: '#f5576c',
+                    backgroundColor: 'rgba(245, 87, 108, 0.1)',
+                    fill: true,
+                    tension: 0.4
+                },
+                {
+                    label: 'Perplexity',
+                    data: data.perplexity ? data.perplexity.map(d => d.score) : [],
+                    borderColor: '#4facfe',
+                    backgroundColor: 'rgba(79, 172, 254, 0.1)',
+                    fill: true,
+                    tension: 0.4
+                }
+            ];
+            
+            if (visibilityChart) {
+                visibilityChart.destroy();
+            }
+            
+            visibilityChart = new Chart(ctx, {
+                type: 'line',
+                data: { labels: dates, datasets: datasets },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { position: 'top' },
+                        tooltip: { mode: 'index', intersect: false }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            max: 100,
+                            title: { display: true, text: 'Visibility Score' }
+                        },
+                        x: {
+                            ticks: { maxTicksLimit: 10 }
+                        }
+                    }
+                }
+            });
         }
         
         async function runCheckNow() {

@@ -69,6 +69,7 @@ class CheckNowResponse(BaseModel):
     google_seo_count: int
     chatgpt_count: int
     deepseek_count: int
+    perplexity_count: int
     recommendations_count: int
     report_id: Optional[int]
 
@@ -83,6 +84,7 @@ class ReportResponse(BaseModel):
     total_clicks: int
     chatgpt_score: int
     deepseek_score: int
+    perplexity_score: int
     keywords_improved: int
     keywords_declined: int
     competitors_mentioned: int
@@ -363,6 +365,7 @@ async def run_check_now(
         google_seo_count=len(results.get("google_seo", [])),
         chatgpt_count=len(results.get("chatgpt", [])),
         deepseek_count=len(results.get("deepseek", [])),
+        perplexity_count=len(results.get("perplexity", [])),
         recommendations_count=len(results.get("recommendations", [])),
         report_id=results.get("report", {}).get("id") if results.get("report") else None
     )
@@ -463,6 +466,57 @@ async def get_ai_visibility_metrics(
     return metrics
 
 
+@router.get("/trends/visibility")
+async def get_visibility_trends(
+    request: Request,
+    days: int = Query(default=30, le=90),
+    db: Session = Depends(get_db)
+):
+    """Get AI visibility trends for charting."""
+    user_id = request.session.get("user_id")
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    
+    advisor = get_growth_advisor()
+    trends = await advisor.get_visibility_trends(db, user_id, days)
+    
+    return trends
+
+
+@router.get("/trends/seo")
+async def get_seo_trends(
+    request: Request,
+    days: int = Query(default=30, le=90),
+    db: Session = Depends(get_db)
+):
+    """Get SEO trends for charting."""
+    user_id = request.session.get("user_id")
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    
+    advisor = get_growth_advisor()
+    trends = await advisor.get_seo_trends(db, user_id, days)
+    
+    return trends
+
+
+@router.get("/trends/competitors")
+async def get_competitor_trends(
+    request: Request,
+    days: int = Query(default=30, le=90),
+    db: Session = Depends(get_db)
+):
+    """Get competitor mention trends."""
+    user_id = request.session.get("user_id")
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    
+    advisor = get_growth_advisor()
+    trends = await advisor.get_competitor_trends(db, user_id, days)
+    
+    return trends
+
+
 @router.get("/status")
 async def get_growth_status(
     request: Request,
@@ -472,6 +526,7 @@ async def get_growth_status(
     from app.services.google_seo_monitor import get_google_seo_monitor
     from app.services.chatgpt_visibility_monitor import get_chatgpt_monitor
     from app.services.deepseek_visibility_monitor import get_deepseek_monitor
+    from app.services.perplexity_visibility_monitor import get_perplexity_monitor
     
     user_id = request.session.get("user_id")
     if not user_id:
@@ -480,6 +535,7 @@ async def get_growth_status(
     google_seo = get_google_seo_monitor()
     chatgpt = get_chatgpt_monitor()
     deepseek = get_deepseek_monitor()
+    perplexity = get_perplexity_monitor()
     
     # Count user's data
     keyword_count = db.query(SEOKeyword).filter(SEOKeyword.user_id == user_id).count()
@@ -500,6 +556,10 @@ async def get_growth_status(
         "deepseek": {
             "mock_mode": deepseek.is_mock_mode(),
             "configured": bool(deepseek.api_key if hasattr(deepseek, 'api_key') else False)
+        },
+        "perplexity": {
+            "mock_mode": perplexity.is_mock_mode(),
+            "configured": bool(perplexity.api_key if hasattr(perplexity, 'api_key') else False)
         },
         "user_data": {
             "keywords_tracked": keyword_count,
