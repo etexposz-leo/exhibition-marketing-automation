@@ -33,6 +33,16 @@ def render_template(template_name: str, context: dict = None) -> HTMLResponse:
     return HTMLResponse(content=html_content)
 
 
+def require_auth(request: Request) -> bool:
+    """Check if user is authenticated."""
+    return request.session.get("user_id") is not None
+
+
+def require_sms_verified(request: Request) -> bool:
+    """Check if user has completed SMS verification."""
+    return request.session.get("sms_verified", False) is True
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Production configuration validation
@@ -89,9 +99,11 @@ app.include_router(event_router, prefix="/api")
 # Serve main page
 @app.get("/")
 async def root(request: Request):
-    """Main page - requires authentication."""
+    """Main page - requires authentication and SMS verification."""
     if not request.session.get("user_id"):
         return RedirectResponse(url="/login")
+    if not request.session.get("sms_verified"):
+        return RedirectResponse(url="/verify-phone")
     return RedirectResponse(url="/dashboard")
 
 
@@ -107,75 +119,104 @@ async def register_page():
     return FileResponse(str(BASE_DIR / "templates" / "register.html"))
 
 
-@app.get("/settings")
-async def settings_page(request: Request):
-    """Settings page - requires authentication."""
+@app.get("/verify-phone")
+async def verify_phone_page(request: Request):
+    """Phone verification page - requires login but not SMS verification."""
     if not request.session.get("user_id"):
         return RedirectResponse(url="/login")
+    # If already verified, redirect to dashboard
+    if request.session.get("sms_verified"):
+        return RedirectResponse(url="/dashboard")
+    return FileResponse(str(BASE_DIR / "templates" / "verify_phone.html"))
+
+
+@app.get("/settings")
+async def settings_page(request: Request):
+    """Settings page - requires authentication and SMS verification."""
+    if not request.session.get("user_id"):
+        return RedirectResponse(url="/login")
+    if not request.session.get("sms_verified"):
+        return RedirectResponse(url="/verify-phone")
     return render_template("settings.html", {"request": request})
 
 
 @app.get("/dashboard")
 async def dashboard_page(request: Request):
-    """Dashboard page - requires authentication."""
+    """Dashboard page - requires authentication and SMS verification."""
     if not request.session.get("user_id"):
         return RedirectResponse(url="/login")
+    if not request.session.get("sms_verified"):
+        return RedirectResponse(url="/verify-phone")
     return render_template("dashboard.html", {"request": request})
 
 
 @app.get("/history")
 async def history_page(request: Request):
-    """History page - requires authentication."""
+    """History page - requires authentication and SMS verification."""
     if not request.session.get("user_id"):
         return RedirectResponse(url="/login")
+    if not request.session.get("sms_verified"):
+        return RedirectResponse(url="/verify-phone")
     return render_template("history.html", {"request": request})
 
 
 @app.get("/growth")
 async def growth_page(request: Request):
-    """Growth Advisor page - requires authentication."""
+    """Growth Advisor page - requires authentication and SMS verification."""
     if not request.session.get("user_id"):
         return RedirectResponse(url="/login")
+    if not request.session.get("sms_verified"):
+        return RedirectResponse(url="/verify-phone")
     return render_template("growth.html", {"request": request})
 
 
 @app.get("/knowledge-base")
 async def knowledge_base_page(request: Request):
-    """Knowledge Base page - requires authentication."""
+    """Knowledge Base page - requires authentication and SMS verification."""
     if not request.session.get("user_id"):
         return RedirectResponse(url="/login")
+    if not request.session.get("sms_verified"):
+        return RedirectResponse(url="/verify-phone")
     return render_template("knowledge_base.html", {"request": request})
 
 
 @app.get("/marketing")
 async def marketing_page(request: Request):
-    """Marketing Automation page - requires authentication."""
+    """Marketing Automation page - requires authentication and SMS verification."""
     if not request.session.get("user_id"):
         return RedirectResponse(url="/login")
+    if not request.session.get("sms_verified"):
+        return RedirectResponse(url="/verify-phone")
     return RedirectResponse(url="/dashboard")
 
 
 @app.get("/events")
 async def events_page(request: Request):
-    """Events page - requires authentication."""
+    """Events page - requires authentication and SMS verification."""
     if not request.session.get("user_id"):
         return RedirectResponse(url="/login")
+    if not request.session.get("sms_verified"):
+        return RedirectResponse(url="/verify-phone")
     return render_template("events.html", {"request": request})
 
 
 @app.get("/events/{event_id}")
 async def event_detail_page(request: Request, event_id: int):
-    """Event detail page - requires authentication."""
+    """Event detail page - requires authentication and SMS verification."""
     if not request.session.get("user_id"):
         return RedirectResponse(url="/login")
+    if not request.session.get("sms_verified"):
+        return RedirectResponse(url="/verify-phone")
     return render_template("event_detail.html", {"request": request, "event_id": event_id})
 
 
 @app.get("/events/{event_id}/assistant")
 async def event_assistant_page(request: Request, event_id: int):
-    """Event AI Assistant page - requires authentication."""
+    """Event AI Assistant page - requires authentication and SMS verification."""
     if not request.session.get("user_id"):
         return RedirectResponse(url="/login")
+    if not request.session.get("sms_verified"):
+        return RedirectResponse(url="/verify-phone")
     return render_template("event_assistant.html", {"request": request, "event_id": event_id})
 
 

@@ -21,15 +21,23 @@ UPLOAD_DIR = BASE_DIR / "data" / "uploads" / "events"
 UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
 
+def require_sms_verified(request: Request) -> int:
+    """Require user to be authenticated and SMS verified. Returns user_id."""
+    user_id = request.session.get("user_id")
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    if not request.session.get("sms_verified"):
+        raise HTTPException(status_code=403, detail="Phone verification required")
+    return user_id
+
+
 # ==================== Event CRUD ====================
 
 
 @router.get("/events/stats")
 async def get_event_stats(request: Request, db: Session = Depends(get_db)):
     """Get event statistics for dashboard."""
-    user_id = request.session.get("user_id")
-    if not user_id:
-        raise HTTPException(status_code=401, detail="Not authenticated")
+    user_id = require_sms_verified(request)
     
     total_events = db.query(Event).filter(Event.user_id == user_id).count()
     
@@ -73,9 +81,7 @@ async def create_event(
     db: Session = Depends(get_db)
 ):
     """Create a new event."""
-    user_id = request.session.get("user_id")
-    if not user_id:
-        raise HTTPException(status_code=401, detail="Not authenticated")
+    user_id = require_sms_verified(request)
     
     from datetime import date
     
@@ -127,9 +133,7 @@ async def create_event(
 @router.get("/events")
 async def list_events(request: Request, db: Session = Depends(get_db)):
     """List all events for the current user."""
-    user_id = request.session.get("user_id")
-    if not user_id:
-        raise HTTPException(status_code=401, detail="Not authenticated")
+    user_id = require_sms_verified(request)
     
     events = db.query(Event).filter(
         Event.user_id == user_id
@@ -156,9 +160,7 @@ async def list_events(request: Request, db: Session = Depends(get_db)):
 @router.get("/events/{event_id}")
 async def get_event(event_id: int, request: Request, db: Session = Depends(get_db)):
     """Get a specific event."""
-    user_id = request.session.get("user_id")
-    if not user_id:
-        raise HTTPException(status_code=401, detail="Not authenticated")
+    user_id = require_sms_verified(request)
     
     event = db.query(Event).filter(
         Event.id == event_id,
@@ -204,9 +206,7 @@ async def update_event(
     db: Session = Depends(get_db)
 ):
     """Update an event."""
-    user_id = request.session.get("user_id")
-    if not user_id:
-        raise HTTPException(status_code=401, detail="Not authenticated")
+    user_id = require_sms_verified(request)
     
     event = db.query(Event).filter(
         Event.id == event_id,
@@ -248,9 +248,7 @@ async def update_event(
 @router.delete("/events/{event_id}")
 async def delete_event(event_id: int, request: Request, db: Session = Depends(get_db)):
     """Delete an event and its documents."""
-    user_id = request.session.get("user_id")
-    if not user_id:
-        raise HTTPException(status_code=401, detail="Not authenticated")
+    user_id = require_sms_verified(request)
     
     event = db.query(Event).filter(
         Event.id == event_id,
@@ -297,9 +295,7 @@ async def upload_document(
     db: Session = Depends(get_db)
 ):
     """Upload a document to an event."""
-    user_id = request.session.get("user_id")
-    if not user_id:
-        raise HTTPException(status_code=401, detail="Not authenticated")
+    user_id = require_sms_verified(request)
     
     # Verify event exists and belongs to user
     event = db.query(Event).filter(
@@ -438,9 +434,7 @@ async def process_document_async(document_id: int, file_path: Path, file_ext: st
 @router.get("/events/{event_id}/documents")
 async def list_documents(event_id: int, request: Request, db: Session = Depends(get_db)):
     """List all documents for an event."""
-    user_id = request.session.get("user_id")
-    if not user_id:
-        raise HTTPException(status_code=401, detail="Not authenticated")
+    user_id = require_sms_verified(request)
     
     # Verify event exists and belongs to user
     event = db.query(Event).filter(
@@ -478,9 +472,7 @@ async def delete_document(
     db: Session = Depends(get_db)
 ):
     """Delete a document."""
-    user_id = request.session.get("user_id")
-    if not user_id:
-        raise HTTPException(status_code=401, detail="Not authenticated")
+    user_id = require_sms_verified(request)
     
     document = db.query(EventDocument).filter(
         EventDocument.id == document_id,
@@ -518,9 +510,7 @@ async def query_event(
     db: Session = Depends(get_db)
 ):
     """Query the event knowledge base."""
-    user_id = request.session.get("user_id")
-    if not user_id:
-        raise HTTPException(status_code=401, detail="Not authenticated")
+    user_id = require_sms_verified(request)
     
     # Verify event exists and belongs to user
     event = db.query(Event).filter(
@@ -595,9 +585,7 @@ async def query_event(
 @router.get("/events/{event_id}/queries")
 async def get_event_queries(event_id: int, request: Request, db: Session = Depends(get_db)):
     """Get query history for an event."""
-    user_id = request.session.get("user_id")
-    if not user_id:
-        raise HTTPException(status_code=401, detail="Not authenticated")
+    user_id = require_sms_verified(request)
     
     queries = db.query(EventQuery).filter(
         EventQuery.event_id == event_id,

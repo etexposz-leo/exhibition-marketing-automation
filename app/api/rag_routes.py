@@ -22,6 +22,14 @@ UPLOAD_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 
+def require_sms_verified(request: Request) -> int:
+    """Require user to be authenticated and SMS verified. Returns user_id."""
+    user_id = require_sms_verified(request)
+    if not request.session.get("sms_verified"):
+        raise HTTPException(status_code=403, detail="Phone verification required")
+    return user_id
+
+
 # ==================== Document Endpoints ====================
 
 
@@ -31,9 +39,7 @@ async def list_documents(
     db = Depends(get_db)
 ):
     """List all documents for current user."""
-    user_id = request.session.get("user_id")
-    if not user_id:
-        raise HTTPException(status_code=401, detail="Not authenticated")
+    user_id = require_sms_verified(request)
     
     documents = db.query(Document).filter(
         Document.user_id == user_id
@@ -69,9 +75,7 @@ async def upload_document(
     db = Depends(get_db)
 ):
     """Upload and index a document."""
-    user_id = request.session.get("user_id")
-    if not user_id:
-        raise HTTPException(status_code=401, detail="Not authenticated")
+    user_id = require_sms_verified(request)
     
     # Validate file type
     allowed_types = ['application/pdf', 'text/plain', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document']
@@ -157,9 +161,7 @@ async def delete_document(
     db = Depends(get_db)
 ):
     """Delete a document and its chunks."""
-    user_id = request.session.get("user_id")
-    if not user_id:
-        raise HTTPException(status_code=401, detail="Not authenticated")
+    user_id = require_sms_verified(request)
     
     document = db.query(Document).filter(
         Document.id == doc_id,
@@ -195,9 +197,7 @@ async def ask_question(
     db = Depends(get_db)
 ):
     """Ask a question using RAG."""
-    user_id = request.session.get("user_id")
-    if not user_id:
-        raise HTTPException(status_code=401, detail="Not authenticated")
+    user_id = require_sms_verified(request)
     
     # Get user's document chunks
     chunks = db.query(DocumentChunk).filter(
@@ -295,9 +295,7 @@ async def list_queries(
     db = Depends(get_db)
 ):
     """List RAG query history."""
-    user_id = request.session.get("user_id")
-    if not user_id:
-        raise HTTPException(status_code=401, detail="Not authenticated")
+    user_id = require_sms_verified(request)
     
     queries = db.query(RAGQuery).filter(
         RAGQuery.user_id == user_id
@@ -348,9 +346,7 @@ async def load_demo_content(
     db = Depends(get_db)
 ):
     """Load demo content for demo@example.com users."""
-    user_id = request.session.get("user_id")
-    if not user_id:
-        raise HTTPException(status_code=401, detail="Not authenticated")
+    user_id = require_sms_verified(request)
     
     user = db.query(User).filter(User.id == user_id).first()
     if not user or user.email != "demo@example.com":

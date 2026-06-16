@@ -1,0 +1,505 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Phone Verification - BoothOS</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        
+        .container {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+            padding: 40px;
+            max-width: 450px;
+            width: 100%;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        .logo {
+            font-size: 32px;
+            font-weight: 700;
+            color: #1a1a2e;
+            margin-bottom: 8px;
+        }
+        
+        .logo span {
+            color: #3b82f6;
+        }
+        
+        .icon-wrapper {
+            width: 80px;
+            height: 80px;
+            background: linear-gradient(135deg, #3b82f6, #2563eb);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 20px;
+        }
+        
+        .icon-wrapper i {
+            font-size: 36px;
+            color: white;
+        }
+        
+        h1 {
+            font-size: 24px;
+            color: #1a1a2e;
+            margin-bottom: 8px;
+        }
+        
+        .subtitle {
+            color: #6b7280;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        label {
+            display: block;
+            font-size: 14px;
+            font-weight: 500;
+            color: #374151;
+            margin-bottom: 8px;
+        }
+        
+        .input-wrapper {
+            position: relative;
+        }
+        
+        .input-wrapper i {
+            position: absolute;
+            left: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #9ca3af;
+        }
+        
+        input[type="tel"],
+        input[type="text"] {
+            width: 100%;
+            padding: 14px 14px 14px 45px;
+            border: 2px solid #e5e7eb;
+            border-radius: 10px;
+            font-size: 16px;
+            transition: all 0.3s ease;
+        }
+        
+        input:focus {
+            outline: none;
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        }
+        
+        .btn {
+            width: 100%;
+            padding: 14px;
+            background: linear-gradient(135deg, #3b82f6, #2563eb);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+        
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px -5px rgba(59, 130, 246, 0.4);
+        }
+        
+        .btn:disabled {
+            background: #9ca3af;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+        
+        .btn-secondary {
+            background: white;
+            color: #3b82f6;
+            border: 2px solid #3b82f6;
+            margin-top: 12px;
+        }
+        
+        .btn-secondary:hover {
+            background: #f0f9ff;
+        }
+        
+        .code-input {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            margin-bottom: 20px;
+        }
+        
+        .code-input input {
+            width: 50px;
+            height: 60px;
+            text-align: center;
+            font-size: 24px;
+            font-weight: 600;
+            padding: 0;
+            border: 2px solid #e5e7eb;
+            border-radius: 10px;
+        }
+        
+        .code-input input:focus {
+            border-color: #3b82f6;
+        }
+        
+        .message {
+            padding: 12px 16px;
+            border-radius: 8px;
+            font-size: 14px;
+            margin-bottom: 20px;
+            display: none;
+        }
+        
+        .message.error {
+            background: #fef2f2;
+            color: #dc2626;
+            border: 1px solid #fecaca;
+            display: block;
+        }
+        
+        .message.success {
+            background: #f0fdf4;
+            color: #16a34a;
+            border: 1px solid #bbf7d0;
+            display: block;
+        }
+        
+        .message.info {
+            background: #eff6ff;
+            color: #2563eb;
+            border: 1px solid #bfdbfe;
+            display: block;
+        }
+        
+        .step {
+            display: none;
+        }
+        
+        .step.active {
+            display: block;
+        }
+        
+        .timer {
+            text-align: center;
+            font-size: 14px;
+            color: #6b7280;
+            margin-top: 12px;
+        }
+        
+        .resend {
+            color: #3b82f6;
+            cursor: pointer;
+            text-decoration: underline;
+        }
+        
+        .resend:hover {
+            color: #2563eb;
+        }
+        
+        .demo-code {
+            background: #f0f9ff;
+            border: 1px dashed #3b82f6;
+            border-radius: 8px;
+            padding: 12px;
+            text-align: center;
+            margin-bottom: 20px;
+            font-size: 13px;
+            color: #1e40af;
+        }
+        
+        .demo-code strong {
+            font-family: monospace;
+            font-size: 18px;
+            color: #1e3a8a;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="logo">Booth<span>OS</span></div>
+            <div class="icon-wrapper">
+                <i class="fas fa-shield-halved"></i>
+            </div>
+            <h1>Phone Verification Required</h1>
+            <p class="subtitle">Please verify your phone number before accessing BoothOS. This helps secure your account.</p>
+        </div>
+        
+        <div id="message" class="message"></div>
+        
+        <!-- Step 1: Enter Phone Number -->
+        <div id="step-phone" class="step active">
+            <form id="phone-form">
+                <div class="form-group">
+                    <label for="phone">Phone Number</label>
+                    <div class="input-wrapper">
+                        <i class="fas fa-phone"></i>
+                        <input type="tel" id="phone" placeholder="+1 (555) 123-4567" required>
+                    </div>
+                </div>
+                <button type="submit" class="btn" id="send-btn">
+                    <i class="fas fa-paper-plane"></i>
+                    Send Verification Code
+                </button>
+            </form>
+        </div>
+        
+        <!-- Step 2: Enter Code -->
+        <div id="step-code" class="step">
+            <div class="demo-code" id="demo-notice" style="display: none;">
+                <i class="fas fa-flask"></i> Demo Mode: Use code <strong>123456</strong>
+            </div>
+            <form id="code-form">
+                <div class="form-group">
+                    <label>Enter Verification Code</label>
+                    <div class="code-input">
+                        <input type="text" maxlength="1" id="code1" pattern="[0-9]">
+                        <input type="text" maxlength="1" id="code2" pattern="[0-9]">
+                        <input type="text" maxlength="1" id="code3" pattern="[0-9]">
+                        <input type="text" maxlength="1" id="code4" pattern="[0-9]">
+                        <input type="text" maxlength="1" id="code5" pattern="[0-9]">
+                        <input type="text" maxlength="1" id="code6" pattern="[0-9]">
+                    </div>
+                </div>
+                <button type="submit" class="btn" id="verify-btn">
+                    <i class="fas fa-check-circle"></i>
+                    Verify Phone Number
+                </button>
+                <button type="button" class="btn btn-secondary" id="resend-btn" disabled>
+                    <i class="fas fa-redo"></i>
+                    Resend Code
+                </button>
+                <div class="timer" id="timer"></div>
+            </form>
+            <input type="hidden" id="hidden-phone">
+        </div>
+    </div>
+    
+    <script>
+        let phoneNumber = '';
+        let timerInterval = null;
+        let timeLeft = 0;
+        
+        // Check if mock mode (demo)
+        const isMockMode = true; // Will be true unless SMS_MOCK_MODE=false
+        
+        if (isMockMode) {
+            document.getElementById('demo-notice').style.display = 'block';
+        }
+        
+        // Phone form submission
+        document.getElementById('phone-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            phoneNumber = document.getElementById('phone').value;
+            if (!phoneNumber) {
+                showMessage('Please enter your phone number', 'error');
+                return;
+            }
+            
+            const btn = document.getElementById('send-btn');
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sending...';
+            
+            try {
+                const response = await fetch('/api/auth/send-sms-code', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify({ phone_number: phoneNumber })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    document.getElementById('hidden-phone').value = phoneNumber;
+                    showMessage('Code sent! Check your phone.', 'success');
+                    showStep('code');
+                    startTimer(data.expires_in_minutes * 60);
+                } else {
+                    showMessage(data.error || 'Failed to send code', 'error');
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="fas fa-paper-plane"></i> Send Verification Code';
+                }
+            } catch (err) {
+                showMessage('Network error. Please try again.', 'error');
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-paper-plane"></i> Send Verification Code';
+            }
+        });
+        
+        // Code form submission
+        document.getElementById('code-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const code = [
+                document.getElementById('code1').value,
+                document.getElementById('code2').value,
+                document.getElementById('code3').value,
+                document.getElementById('code4').value,
+                document.getElementById('code5').value,
+                document.getElementById('code6').value
+            ].join('');
+            
+            if (code.length !== 6) {
+                showMessage('Please enter all 6 digits', 'error');
+                return;
+            }
+            
+            const btn = document.getElementById('verify-btn');
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Verifying...';
+            
+            try {
+                const response = await fetch('/api/auth/verify-sms-code', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify({
+                        phone_number: document.getElementById('hidden-phone').value,
+                        code: code
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    showMessage('Phone verified! Redirecting...', 'success');
+                    setTimeout(() => {
+                        window.location.href = '/dashboard';
+                    }, 1000);
+                } else {
+                    showMessage(data.error || 'Invalid code', 'error');
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="fas fa-check-circle"></i> Verify Phone Number';
+                }
+            } catch (err) {
+                showMessage('Network error. Please try again.', 'error');
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-check-circle"></i> Verify Phone Number';
+            }
+        });
+        
+        // Code input handling
+        const codeInputs = document.querySelectorAll('.code-input input');
+        codeInputs.forEach((input, index) => {
+            input.addEventListener('input', (e) => {
+                if (e.target.value && index < codeInputs.length - 1) {
+                    codeInputs[index + 1].focus();
+                }
+            });
+            input.addEventListener('keydown', (e) => {
+                if (e.key === 'Backspace' && !e.target.value && index > 0) {
+                    codeInputs[index - 1].focus();
+                }
+            });
+        });
+        
+        // Resend button
+        document.getElementById('resend-btn').addEventListener('click', async () => {
+            const btn = document.getElementById('resend-btn');
+            btn.disabled = true;
+            
+            try {
+                const response = await fetch('/api/auth/send-sms-code', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify({ phone_number: phoneNumber })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    showMessage('New code sent!', 'info');
+                    startTimer(data.expires_in_minutes * 60);
+                    // Clear code inputs
+                    codeInputs.forEach(input => input.value = '');
+                    codeInputs[0].focus();
+                } else {
+                    showMessage(data.error || 'Failed to resend code', 'error');
+                }
+            } catch (err) {
+                showMessage('Network error. Please try again.', 'error');
+            }
+        });
+        
+        function showStep(step) {
+            document.querySelectorAll('.step').forEach(s => s.classList.remove('active'));
+            document.getElementById(`step-${step}`).classList.add('active');
+        }
+        
+        function showMessage(text, type) {
+            const msg = document.getElementById('message');
+            msg.textContent = text;
+            msg.className = `message ${type}`;
+        }
+        
+        function startTimer(seconds) {
+            timeLeft = seconds;
+            clearInterval(timerInterval);
+            
+            const timerEl = document.getElementById('timer');
+            const resendBtn = document.getElementById('resend-btn');
+            
+            updateTimerDisplay();
+            resendBtn.disabled = true;
+            
+            timerInterval = setInterval(() => {
+                timeLeft--;
+                updateTimerDisplay();
+                
+                if (timeLeft <= 0) {
+                    clearInterval(timerInterval);
+                    timerEl.innerHTML = 'Code expired. <span class="resend">Resend code</span>';
+                    resendBtn.disabled = false;
+                    resendBtn.innerHTML = '<i class="fas fa-redo"></i> Resend Code';
+                }
+            }, 1000);
+        }
+        
+        function updateTimerDisplay() {
+            const minutes = Math.floor(timeLeft / 60);
+            const seconds = timeLeft % 60;
+            document.getElementById('timer').innerHTML = 
+                `Code expires in ${minutes}:${seconds.toString().padStart(2, '0')}`;
+        }
+    </script>
+</body>
+</html>

@@ -40,6 +40,10 @@ class User(Base):
     company_name = Column(String(200), nullable=True)  # Company name
     is_active = Column(Boolean, default=True)
     is_demo = Column(Boolean, default=False)  # Demo account flag
+    # Phone verification fields
+    phone_number = Column(String(20), nullable=True)
+    phone_verified = Column(Boolean, default=False)
+    sms_verified_at = Column(DateTime, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -414,4 +418,18 @@ class EventQuery(Base):
     answer = Column(Text, nullable=False)
     sources_json = Column(Text, nullable=True)  # JSON array of source documents/chunks
     provider = Column(String(50), default="mock")  # mock, openai, deepseek, nvidia
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class SMSVerification(Base):
+    """SMS verification codes for phone verification."""
+    __tablename__ = "sms_verifications"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, nullable=False, index=True)
+    phone_number = Column(String(20), nullable=False)
+    code_hash = Column(String(255), nullable=False)  # Hashed verification code
+    attempts = Column(Integer, default=0)  # Number of verification attempts
+    expires_at = Column(DateTime, nullable=False)
+    verified_at = Column(DateTime, nullable=True)  # When successfully verified
     created_at = Column(DateTime, default=datetime.utcnow)

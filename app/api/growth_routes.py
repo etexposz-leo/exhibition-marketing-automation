@@ -18,6 +18,16 @@ from app.services.growth_advisor import get_growth_advisor
 router = APIRouter(prefix="/growth", tags=["growth"])
 
 
+def require_sms_verified(request: Request) -> int:
+    """Require user to be authenticated and SMS verified. Returns user_id."""
+    user_id = require_sms_verified(request)
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    if not request.session.get("sms_verified"):
+        raise HTTPException(status_code=403, detail="Phone verification required")
+    return user_id
+
+
 # ==================== Pydantic Models ====================
 
 class KeywordCreate(BaseModel):
@@ -115,7 +125,7 @@ async def list_keywords(
     db: Session = Depends(get_db)
 ):
     """Get all keywords for the current user."""
-    user_id = request.session.get("user_id")
+    user_id = require_sms_verified(request)
     if not user_id:
         raise HTTPException(status_code=401, detail="Not authenticated")
     
@@ -149,7 +159,7 @@ async def create_keyword(
     db: Session = Depends(get_db)
 ):
     """Create a new keyword to track."""
-    user_id = request.session.get("user_id")
+    user_id = require_sms_verified(request)
     if not user_id:
         raise HTTPException(status_code=401, detail="Not authenticated")
     
@@ -188,7 +198,7 @@ async def update_keyword(
     db: Session = Depends(get_db)
 ):
     """Update a keyword."""
-    user_id = request.session.get("user_id")
+    user_id = require_sms_verified(request)
     if not user_id:
         raise HTTPException(status_code=401, detail="Not authenticated")
     
@@ -238,7 +248,7 @@ async def delete_keyword(
     db: Session = Depends(get_db)
 ):
     """Delete a keyword."""
-    user_id = request.session.get("user_id")
+    user_id = require_sms_verified(request)
     if not user_id:
         raise HTTPException(status_code=401, detail="Not authenticated")
     
@@ -264,7 +274,7 @@ async def list_competitors(
     db: Session = Depends(get_db)
 ):
     """Get all competitors for the current user."""
-    user_id = request.session.get("user_id")
+    user_id = require_sms_verified(request)
     if not user_id:
         raise HTTPException(status_code=401, detail="Not authenticated")
     
@@ -294,7 +304,7 @@ async def create_competitor(
     db: Session = Depends(get_db)
 ):
     """Add a new competitor to track."""
-    user_id = request.session.get("user_id")
+    user_id = require_sms_verified(request)
     if not user_id:
         raise HTTPException(status_code=401, detail="Not authenticated")
     
@@ -327,7 +337,7 @@ async def delete_competitor(
     db: Session = Depends(get_db)
 ):
     """Delete (deactivate) a competitor."""
-    user_id = request.session.get("user_id")
+    user_id = require_sms_verified(request)
     if not user_id:
         raise HTTPException(status_code=401, detail="Not authenticated")
     
@@ -353,7 +363,7 @@ async def run_check_now(
     db: Session = Depends(get_db)
 ):
     """Run a full growth check now."""
-    user_id = request.session.get("user_id")
+    user_id = require_sms_verified(request)
     if not user_id:
         raise HTTPException(status_code=401, detail="Not authenticated")
     
@@ -377,7 +387,7 @@ async def get_latest_report(
     db: Session = Depends(get_db)
 ):
     """Get the latest daily growth report."""
-    user_id = request.session.get("user_id")
+    user_id = require_sms_verified(request)
     if not user_id:
         raise HTTPException(status_code=401, detail="Not authenticated")
     
@@ -398,7 +408,7 @@ async def get_recommendations(
     db: Session = Depends(get_db)
 ):
     """Get growth recommendations."""
-    user_id = request.session.get("user_id")
+    user_id = require_sms_verified(request)
     if not user_id:
         raise HTTPException(status_code=401, detail="Not authenticated")
     
@@ -416,7 +426,7 @@ async def update_recommendation_status(
     db: Session = Depends(get_db)
 ):
     """Update the status of a recommendation."""
-    user_id = request.session.get("user_id")
+    user_id = require_sms_verified(request)
     if not user_id:
         raise HTTPException(status_code=401, detail="Not authenticated")
     
@@ -439,7 +449,7 @@ async def get_seo_metrics(
     db: Session = Depends(get_db)
 ):
     """Get SEO metrics for keywords."""
-    user_id = request.session.get("user_id")
+    user_id = require_sms_verified(request)
     if not user_id:
         raise HTTPException(status_code=401, detail="Not authenticated")
     
@@ -456,7 +466,7 @@ async def get_ai_visibility_metrics(
     db: Session = Depends(get_db)
 ):
     """Get AI visibility metrics."""
-    user_id = request.session.get("user_id")
+    user_id = require_sms_verified(request)
     if not user_id:
         raise HTTPException(status_code=401, detail="Not authenticated")
     
@@ -473,7 +483,7 @@ async def get_visibility_trends(
     db: Session = Depends(get_db)
 ):
     """Get AI visibility trends for charting."""
-    user_id = request.session.get("user_id")
+    user_id = require_sms_verified(request)
     if not user_id:
         raise HTTPException(status_code=401, detail="Not authenticated")
     
@@ -490,7 +500,7 @@ async def get_seo_trends(
     db: Session = Depends(get_db)
 ):
     """Get SEO trends for charting."""
-    user_id = request.session.get("user_id")
+    user_id = require_sms_verified(request)
     if not user_id:
         raise HTTPException(status_code=401, detail="Not authenticated")
     
@@ -507,7 +517,7 @@ async def get_competitor_trends(
     db: Session = Depends(get_db)
 ):
     """Get competitor mention trends."""
-    user_id = request.session.get("user_id")
+    user_id = require_sms_verified(request)
     if not user_id:
         raise HTTPException(status_code=401, detail="Not authenticated")
     
@@ -528,7 +538,7 @@ async def get_growth_status(
     from app.services.deepseek_visibility_monitor import get_deepseek_monitor
     from app.services.perplexity_visibility_monitor import get_perplexity_monitor
     
-    user_id = request.session.get("user_id")
+    user_id = require_sms_verified(request)
     if not user_id:
         raise HTTPException(status_code=401, detail="Not authenticated")
     
