@@ -20,7 +20,7 @@ router = APIRouter(prefix="/growth", tags=["growth"])
 
 def require_sms_verified(request: Request) -> int:
     """Require user to be authenticated and SMS verified. Returns user_id."""
-    user_id = require_sms_verified(request)
+    user_id = request.session.get("user_id")
     if not user_id:
         raise HTTPException(status_code=401, detail="Not authenticated")
     if not request.session.get("sms_verified"):
