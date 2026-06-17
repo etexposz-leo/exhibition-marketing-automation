@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - BoothAS</title>
+    <link rel="stylesheet" href="/static/css/styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        .dashboard-container { max-width: 1200px; margin: 0 auto; }
+        .welcome-header { margin-bottom: 2rem; }
+        .welcome-title { font-size: 1.75rem; font-weight: 700; color: var(--text); margin-bottom: 0.5rem; }
+        .welcome-subtitle { color: var(--text-secondary); font-size: 0.95rem; }
+        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; margin-bottom: 2rem; }
+        .stat-card { background: var(--surface); border-radius: 12px; padding: 1.25rem; border: 1px solid var(--surface-light); display: flex; align-items: center; gap: 1rem; transition: transform 0.2s, box-shadow 0.2s, cursor: pointer; cursor: pointer; text-decoration: none; color: inherit; }
+        .stat-card:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,0,0,0.1); background: var(--primary); }
+        .stat-card:hover .stat-value, .stat-card:hover .stat-label { color: white; }
+        .stat-card:hover .stat-icon svg { stroke: white; }
+        .stat-icon { width: 48px; height: 48px; border-radius: 12px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+        .stat-icon.campaigns { background: linear-gradient(135deg, #667eea, #764ba2); }
+        .stat-icon.scheduled { background: linear-gradient(135deg, #f093fb, #f5576c); }
+        .stat-icon.published { background: linear-gradient(135deg, #4facfe, #00f2fe); }
+        .stat-icon.failed { background: linear-gradient(135deg, #fa709a, #fee140); }
+        .stat-icon.events { background: linear-gradient(135deg, #11998e, #38ef7d); }
+        .stat-icon.documents { background: linear-gradient(135deg, #fc4a1a, #f7b733); }
+        .stat-icon.queries { background: linear-gradient(135deg, #8e2de2, #4a00e0); }
+        .stat-icon svg { width: 24px; height: 24px; stroke: white; }
+        .stat-info { display: flex; flex-direction: column; }
+        .stat-value { font-size: 1.75rem; font-weight: 700; color: var(--text); line-height: 1.2; }
+        .stat-label { font-size: 0.75rem; color: var(--text-secondary); margin-top: 0.25rem; }
+        .quick-links { background: var(--surface); border-radius: 12px; padding: 1.5rem; border: 1px solid var(--surface-light); }
+        .quick-links-title { font-size: 1rem; font-weight: 600; color: var(--text); margin-bottom: 1rem; }
+        .quick-links-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; }
+        .quick-link { display: flex; align-items: center; gap: 0.75rem; padding: 1rem; background: var(--bg); border-radius: 8px; text-decoration: none; color: var(--text); transition: all 0.2s; cursor: pointer; }
+        .quick-link:hover { background: var(--primary); color: white; }
+        .quick-link:hover svg { stroke: white; }
+        .quick-link svg { width: 20px; height: 20px; stroke: var(--primary); flex-shrink: 0; }
+        .quick-link-text { font-size: 0.9rem; font-weight: 500; }
+        .recent-activity { background: var(--surface); border-radius: 12px; padding: 1.5rem; border: 1px solid var(--surface-light); margin-top: 1.5rem; }
+        .activity-title-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
+        .activity-title { font-size: 1rem; font-weight: 600; color: var(--text); }
+        .activity-list { display: flex; flex-direction: column; gap: 0.75rem; }
+        .activity-item { display: flex; align-items: center; gap: 0.75rem; padding: 0.85rem; background: var(--bg); border-radius: 8px; }
+        .activity-icon { width: 32px; height: 32px; border-radius: 8px; display: flex; align-items: center; justify-content: center; }
+        .activity-icon.scheduled { background: rgba(102, 126, 234, 0.15); color: var(--primary); }
+        .activity-icon.published { background: rgba(72, 199, 142, 0.15); color: var(--success); }
+        .activity-icon.failed { background: rgba(239, 68, 68, 0.15); color: var(--error); }
+        .activity-icon.events { background: rgba(17, 153, 142, 0.15); color: #11998e; }
+        .activity-icon svg { width: 16px; height: 16px; }
+        .activity-details { flex: 1; }
+        .activity-platform { font-weight: 500; font-size: 0.9rem; color: var(--text); }
+        .activity-content { font-size: 0.75rem; color: var(--text-secondary); margin-top: 0.15rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .activity-time { font-size: 0.75rem; color: var(--text-secondary); }
+    </style>
+</head>
+<body>
+    {% include 'components/nav.html' %}
+    
+    <div class="main-wrapper">
+        <main class="main-content">
+            <div class="dashboard-container">
+                <div class="welcome-header">
+                    <h1 class="welcome-title">Welcome to BoothAS</h1>
+                    <p class="welcome-subtitle">Your unified exhibition marketing command center</p>
+                </div>
+                
+                <section class="stats-grid">
+                    <a href="/events" class="stat-card">
+                        <div class="stat-icon events">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                        </div>
+                        <div class="stat-info">
+                            <span class="stat-value" id="total-events">0</span>
+                            <span class="stat-label">Total Events</span>
+                        </div>
+                    </a>
+                    <a href="/knowledge-base" class="stat-card">
+                        <div class="stat-icon documents">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                        </div>
+                        <div class="stat-info">
+                            <span class="stat-value" id="total-documents">0</span>
+                            <span class="stat-label">Documents</span>
+                        </div>
+                    </a>
+                    <a href="/knowledge-base" class="stat-card">
+                        <div class="stat-icon queries">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 015.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                        </div>
+                        <div class="stat-info">
+                            <span class="stat-value" id="total-queries">0</span>
+                            <span class="stat-label">KB Queries</span>
+                        </div>
+                    </a>
+                    <a href="/marketing" class="stat-card">
+                        <div class="stat-icon campaigns">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+                        </div>
+                        <div class="stat-info">
+                            <span class="stat-value" id="total-campaigns">0</span>
+                            <span class="stat-label">Campaigns</span>
+                        </div>
+                    </a>
+                    <a href="/history" class="stat-card">
+                        <div class="stat-icon scheduled">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                        </div>
+                        <div class="stat-info">
+                            <span class="stat-value" id="scheduled-posts">0</span>
+                            <span class="stat-label">Scheduled</span>
+                        </div>
+                    </a>
+                    <a href="/history" class="stat-card">
+                        <div class="stat-icon published">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+                        </div>
+                        <div class="stat-info">
+                            <span class="stat-value" id="published-posts">0</span>
+                            <span class="stat-label">Published</span>
+                        </div>
+                    </a>
+                </section>
+                
+                <section class="quick-links">
+                    <h2 class="quick-links-title">Quick Actions</h2>
+                    <div class="quick-links-grid">
+                        <a href="/events" class="quick-link">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                            <span class="quick-link-text">Create Event</span>
+                        </a>
+                        <a href="/knowledge-base" class="quick-link">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                            <span class="quick-link-text">Upload Manual</span>
+                        </a>
+                        <a href="/knowledge-base" class="quick-link">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 016.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/></svg>
+                            <span class="quick-link-text">Knowledge Base</span>
+                        </a>
+                        <a href="/marketing" class="quick-link">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+                            <span class="quick-link-text">Marketing</span>
+                        </a>
+                    </div>
+                </section>
+                
+                <section class="recent-activity">
+                    <div class="activity-title-bar">
+                        <h2 class="activity-title">Recent Activity</h2>
+                    </div>
+                    <div class="activity-list" id="activityList">
+                        <p style="color: var(--text-secondary); text-align: center; padding: 2rem;">Loading...</p>
+                    </div>
+                </section>
+            </div>
+        </main>
+    </div>
+    
+    <script>
+        async function loadDashboard() {
+            try {
+                // Load event stats
+                const eventStatsRes = await fetch('/api/events/stats');
+                if (eventStatsRes.ok) {
+                    const eventStats = await eventStatsRes.json();
+                    document.getElementById('total-events').textContent = eventStats.total_events || 0;
+                    document.getElementById('total-documents').textContent = eventStats.total_documents || 0;
+                    document.getElementById('total-queries').textContent = eventStats.total_queries || 0;
+                }
+                
+                const campaignsRes = await fetch('/api/campaigns');
+                const campaigns = await campaignsRes.json();
+                document.getElementById('total-campaigns').textContent = campaigns.length;
+                
+                const postsRes = await fetch('/api/scheduled-posts');
+                const posts = await postsRes.json();
+                document.getElementById('scheduled-posts').textContent = posts.filter(p => p.status === 'scheduled').length;
+                document.getElementById('published-posts').textContent = posts.filter(p => p.status === 'published').length;
+                
+                const list = document.getElementById('activityList');
+                if (posts.length === 0) { 
+                    list.innerHTML = '<p style="color: var(--text-secondary); text-align: center; padding: 2rem;">No recent activity yet. Start by creating an event or campaign!</p>'; 
+                    return; 
+                }
+                
+                list.innerHTML = posts.slice(0, 10).map(p => {
+                    const iconClass = p.status;
+                    const icon = p.status === 'published' ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>' :
+                                 p.status === 'failed' ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>' :
+                                 '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>';
+                    return `<div class="activity-item">
+                        <div class="activity-icon ${iconClass}">${icon}</div>
+                        <div class="activity-details">
+                            <div class="activity-platform">${p.platform || 'Unknown'}</div>
+                            <div class="activity-content">${p.content ? p.content.substring(0, 50) + '...' : 'No content'}</div>
+                        </div>
+                        <span class="activity-time">${p.status}</span>
+                    </div>`;
+                }).join('');
+            } catch (e) {
+                console.error('Error loading dashboard:', e);
+            }
+        }
+        loadDashboard();
+    </script>
+</body>
+</html>

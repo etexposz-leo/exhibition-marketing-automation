@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>History - Marketing Automation</title>
+    <link rel="stylesheet" href="/static/css/styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    {% include 'components/nav.html' %}
+    
+    <div class="main-wrapper">
+        <main class="main-content">
+            <h1 style="font-size: 1.5rem; font-weight: 600; margin-bottom: 1.5rem;">Publishing History</h1>
+            <div class="history-list" id="historyList">
+                <div class="loading">Loading publishing history...</div>
+            </div>
+        </main>
+    </div>
+    
+    <script>
+        async function loadHistory() {
+            try {
+                const response = await fetch('/api/scheduled-posts');
+                const posts = await response.json();
+                const list = document.getElementById('historyList');
+                
+                if (posts.length === 0) {
+                    list.innerHTML = '<p class="empty-state" style="color: var(--text-secondary); text-align: center; padding: 2rem;">No publishing history yet.</p>';
+                    return;
+                }
+                
+                list.innerHTML = posts.map(p => `
+                    <div class="history-item" style="background: var(--surface); border-radius: 8px; padding: 1rem; border: 1px solid var(--surface-light);">
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
+                            <strong style="color: var(--primary);">${p.platform}</strong>
+                            <span style="padding: 0.25rem 0.5rem; border-radius: 4px; font-size: 0.75rem; background: ${p.status === 'published' ? 'var(--success)' : 'var(--warning)'}; color: white;">${p.status}</span>
+                        </div>
+                        <p style="color: var(--text-secondary); font-size: 0.85rem; margin: 0;">${p.content ? p.content.substring(0, 100) + '...' : 'No content'}</p>
+                    </div>
+                `).join('');
+            } catch (error) {
+                document.getElementById('historyList').innerHTML = '<p style="color: var(--error); text-align: center;">Failed to load history</p>';
+            }
+        }
+        
+        loadHistory();
+    </script>
+    <style>
+        .history-list { display: flex; flex-direction: column; gap: 1rem; }
+        .history-item { display: grid; grid-template-columns: 100px 1fr 100px 150px; gap: 1rem; padding: 1rem; background: var(--surface); border-radius: 8px; align-items: center; }
+        .history-platform { font-weight: 600; text-transform: capitalize; }
+        .history-content { color: var(--text-secondary); font-size: 0.9rem; }
+        .history-status { padding: 0.25rem 0.75rem; border-radius: 20px; font-size: 0.8rem; text-align: center; text-transform: capitalize; }
+        .history-status.published { background: rgba(16, 185, 129, 0.2); color: var(--success); }
+        .history-status.scheduled { background: rgba(245, 158, 11, 0.2); color: var(--warning); }
+        .history-status.failed { background: rgba(239, 68, 68, 0.2); color: var(--error); }
+        .history-date { font-size: 0.85rem; color: var(--text-secondary); }
+        .empty-state { text-align: center; padding: 3rem; color: var(--text-secondary); }
+        .error { color: var(--error); padding: 2rem; text-align: center; }
+    </style>
+</body>
+</html>

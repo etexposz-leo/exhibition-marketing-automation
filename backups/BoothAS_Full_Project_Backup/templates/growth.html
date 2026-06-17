@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Growth Advisor - BoothAS</title>
+    <link rel="stylesheet" href="/static/css/styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <style>
+        .growth-container { max-width: 1400px; margin: 0 auto; }
+        .growth-header { text-align: center; padding: 1.5rem 0; border-bottom: 1px solid var(--surface-light); margin-bottom: 1.5rem; }
+        .growth-title { font-size: 1.75rem; background: linear-gradient(135deg, var(--primary), #818cf8); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .growth-subtitle { color: var(--text-secondary); font-size: 0.9rem; margin-top: 0.5rem; }
+        .growth-actions { display: flex; justify-content: center; gap: 0.75rem; margin-top: 1rem; }
+        .status-bar { display: flex; justify-content: center; gap: 0.75rem; margin-bottom: 1.5rem; flex-wrap: wrap; }
+        .status-item { display: flex; align-items: center; gap: 0.5rem; padding: 0.5rem 1rem; background: var(--surface); border-radius: 20px; font-size: 0.8rem; }
+        .status-label { color: var(--text-secondary); }
+        .status-badge { padding: 0.25rem 0.6rem; border-radius: 4px; font-size: 0.7rem; font-weight: 600; }
+        .badge-mock { background: var(--warning); color: #000; }
+        .badge-live { background: var(--success); color: white; }
+        .metrics-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; margin-bottom: 1.5rem; }
+        .metric-card { background: var(--surface); border-radius: 12px; padding: 1.25rem; text-align: center; border: 1px solid var(--surface-light); }
+        .metric-label { font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 0.5rem; text-transform: uppercase; }
+        .metric-value { font-size: 2rem; font-weight: 700; color: var(--text); }
+        .section { background: var(--surface); border-radius: 12px; padding: 1.5rem; margin-bottom: 1.5rem; border: 1px solid var(--surface-light); }
+        .section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem; flex-wrap: wrap; gap: 0.75rem; }
+        .section-title { font-size: 1.1rem; font-weight: 600; color: var(--text); }
+        .ai-visibility-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem; }
+        .ai-card { background: var(--bg); border: 2px solid var(--surface-light); border-radius: 12px; padding: 1.25rem; }
+        .ai-card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
+        .ai-platform { font-weight: 600; font-size: 1rem; color: var(--text); }
+        .ai-mode { font-size: 0.7rem; padding: 0.2rem 0.5rem; border-radius: 4px; background: var(--surface-light); color: var(--text-secondary); }
+        .ai-score { font-size: 2.5rem; font-weight: 700; color: var(--text); }
+        .ai-score.low { color: var(--error); }
+        .ai-score.medium { color: var(--warning); }
+        .ai-score.high { color: var(--success); }
+        .ai-bar { height: 6px; background: var(--surface-light); border-radius: 3px; margin-top: 0.75rem; overflow: hidden; }
+        .ai-bar-fill { height: 100%; border-radius: 3px; transition: width 0.5s; background: var(--primary); }
+        .ai-competitors { margin-top: 1rem; }
+        .ai-competitors-label { font-size: 0.7rem; color: var(--text-secondary); margin-bottom: 0.5rem; }
+        .competitor-tags { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.75rem; }
+        .competitor-tag { background: var(--surface-light); padding: 0.25rem 0.6rem; border-radius: 4px; font-size: 0.75rem; color: var(--text-secondary); }
+        .chart-wrapper { margin-top: 1rem; }
+        .chart-controls { display: flex; gap: 0.5rem; margin-bottom: 1rem; }
+        .chart-controls select { padding: 0.4rem 0.75rem; background: var(--bg); color: var(--text); border: 1px solid var(--surface-light); border-radius: 6px; font-size: 0.8rem; }
+        .keyword-form { display: grid; grid-template-columns: 1fr auto auto auto; gap: 0.75rem; margin-bottom: 1.25rem; }
+        .keyword-form input, .keyword-form select { padding: 0.6rem 0.85rem; border: 2px solid var(--surface-light); border-radius: 8px; font-size: 0.85rem; background: var(--bg); color: var(--text); }
+        .keyword-form input:focus, .keyword-form select:focus { outline: none; border-color: var(--primary); }
+        .keywords-table { width: 100%; border-collapse: collapse; }
+        .keywords-table th { text-align: left; padding: 0.75rem; border-bottom: 2px solid var(--surface-light); color: var(--text-secondary); font-size: 0.75rem; text-transform: uppercase; }
+        .keywords-table td { padding: 0.85rem 0.75rem; border-bottom: 1px solid var(--surface-light); color: var(--text); font-size: 0.85rem; }
+        .keywords-table tr:hover { background: var(--bg); }
+        .priority-badge { padding: 0.25rem 0.5rem; border-radius: 4px; font-size: 0.7rem; font-weight: 600; }
+        .priority-high { background: rgba(239, 68, 68, 0.2); color: var(--error); }
+        .priority-medium { background: rgba(245, 158, 11, 0.2); color: var(--warning); }
+        .priority-low { background: rgba(99, 102, 241, 0.2); color: var(--primary); }
+        .recommendations-list { display: flex; flex-direction: column; gap: 1rem; }
+        .recommendation-card { border: 1px solid var(--surface-light); border-radius: 10px; padding: 1rem; background: var(--bg); }
+        .recommendation-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.75rem; gap: 0.5rem; }
+        .recommendation-title { font-weight: 600; font-size: 0.95rem; color: var(--text); }
+        .recommendation-meta { display: flex; gap: 0.5rem; align-items: center; }
+        .recommendation-desc { color: var(--text-secondary); font-size: 0.85rem; line-height: 1.5; margin-bottom: 1rem; }
+        .recommendation-actions { background: var(--surface); padding: 0.75rem; border-radius: 6px; }
+        .recommendation-actions h4 { font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 0.5rem; }
+        .recommendation-actions ul { margin: 0; padding-left: 1.25rem; }
+        .recommendation-actions li { font-size: 0.8rem; color: var(--text); margin-bottom: 0.25rem; }
+        .filter-tabs { display: flex; gap: 0.4rem; margin-bottom: 1rem; flex-wrap: wrap; }
+        .filter-tab { padding: 0.35rem 0.75rem; background: var(--bg); color: var(--text-secondary); border: 1px solid var(--surface-light); border-radius: 6px; font-size: 0.75rem; cursor: pointer; }
+        .filter-tab.active { background: var(--primary); border-color: var(--primary); color: white; }
+        .empty-state { text-align: center; padding: 3rem; color: var(--text-secondary); }
+        .empty-state-icon { font-size: 3rem; margin-bottom: 1rem; }
+        .loading-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(15, 23, 42, 0.95); display: none; flex-direction: column; align-items: center; justify-content: center; z-index: 1000; }
+        .loading-overlay.active { display: flex; }
+        .loading-spinner { width: 50px; height: 50px; border: 4px solid var(--surface-light); border-top-color: var(--primary); border-radius: 50%; animation: spin 1s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .loading-text { margin-top: 1rem; color: var(--text-secondary); font-size: 0.9rem; }
+        @media (max-width: 768px) { .keyword-form { grid-template-columns: 1fr; } .metrics-grid { grid-template-columns: repeat(2, 1fr); } }
+    </style>
+</head>
+<body>
+    {% include 'components/nav.html' %}
+    
+    <div class="main-wrapper">
+        <main class="main-content">
+            <p class="growth-subtitle">AI-powered SEO & visibility monitoring for exhibition booth companies</p>
+            <div class="growth-actions">
+                <button class="btn-primary" onclick="runCheckNow()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg>Run Check Now</button>
+                <button class="btn-secondary" onclick="exportData()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>Export CSV</button>
+            </div>
+        </header>
+        <main class="main-content">
+            <div class="status-bar" id="statusBar">
+                <div class="status-item"><span class="status-label">Google SEO</span><span class="status-badge badge-mock" id="googleStatus">Mock Mode</span></div>
+                <div class="status-item"><span class="status-label">ChatGPT</span><span class="status-badge badge-mock" id="chatgptStatus">Mock Mode</span></div>
+                <div class="status-item"><span class="status-label">DeepSeek</span><span class="status-badge badge-mock" id="deepseekStatus">Mock Mode</span></div>
+                <div class="status-item"><span class="status-label">Perplexity</span><span class="status-badge badge-mock" id="perplexityStatus">Mock Mode</span></div>
+            </div>
+            <div class="metrics-grid" id="metricsGrid">
+                <div class="metric-card"><div class="metric-label">Keywords Tracked</div><div class="metric-value" id="totalKeywords">0</div></div>
+                <div class="metric-card"><div class="metric-label">Avg. Position</div><div class="metric-value" id="avgPosition">-</div></div>
+                <div class="metric-card"><div class="metric-label">ChatGPT Visibility</div><div class="metric-value" id="chatgptScore">-</div></div>
+                <div class="metric-card"><div class="metric-label">DeepSeek Visibility</div><div class="metric-value" id="deepseekScore">-</div></div>
+                <div class="metric-card"><div class="metric-label">Perplexity Visibility</div><div class="metric-value" id="perplexityScore">-</div></div>
+            </div>
+            <section class="section">
+                <div class="section-header"><h2 class="section-title">🤖 AI Platform Visibility</h2></div>
+                <div class="ai-visibility-grid">
+                    <div class="ai-card"><div class="ai-card-header"><span class="ai-platform">ChatGPT</span><span class="ai-mode" id="chatgptMode">Mock</span></div><div class="ai-score" id="chatgptScoreBig">0</div><div class="ai-bar"><div class="ai-bar-fill" id="chatgptBar" style="width: 0%"></div></div><div class="ai-competitors"><div class="ai-competitors-label">Competitors Mentioned</div><div class="competitor-tags" id="chatgptCompetitors"></div></div></div>
+                    <div class="ai-card"><div class="ai-card-header"><span class="ai-platform">DeepSeek</span><span class="ai-mode" id="deepseekMode">Mock</span></div><div class="ai-score" id="deepseekScoreBig">0</div><div class="ai-bar"><div class="ai-bar-fill" id="deepseekBar" style="width: 0%"></div></div><div class="ai-competitors"><div class="ai-competitors-label">Competitors Mentioned</div><div class="competitor-tags" id="deepseekCompetitors"></div></div></div>
+                    <div class="ai-card"><div class="ai-card-header"><span class="ai-platform">Perplexity</span><span class="ai-mode" id="perplexityMode">Mock</span></div><div class="ai-score" id="perplexityScoreBig">0</div><div class="ai-bar"><div class="ai-bar-fill" id="perplexityBar" style="width: 0%"></div></div><div class="ai-competitors"><div class="ai-competitors-label">Competitors Mentioned</div><div class="competitor-tags" id="perplexityCompetitors"></div></div></div>
+                </div>
+            </section>
+            <section class="section">
+                <div class="section-header"><h2 class="section-title">📈 Visibility Trends</h2><div class="chart-controls"><select id="trendDays" onchange="loadTrends()"><option value="7">Last 7 days</option><option value="14">Last 14 days</option><option value="30" selected>Last 30 days</option></select></div></div>
+                <div class="chart-wrapper"><canvas id="visibilityChart" height="300"></canvas></div>
+            </section>
+            <section class="section">
+                <div class="section-header"><h2 class="section-title">🎯 Tracked Keywords</h2></div>
+                <form class="keyword-form" id="keywordForm" onsubmit="addKeyword(event)">
+                    <input type="text" id="keywordText" placeholder="Enter keyword..." required>
+                    <select id="keywordCategory"><option value="service">Service</option><option value="location">Location</option><option value="event">Event</option><option value="brand">Brand</option></select>
+                    <select id="keywordPriority"><option value="high">High Priority</option><option value="medium" selected>Medium Priority</option><option value="low">Low Priority</option></select>
+                    <button type="submit" class="btn-primary">Add Keyword</button>
+                </form>
+                <table class="keywords-table"><thead><tr><th>Keyword</th><th>Category</th><th>Priority</th><th>Position</th><th>CTR</th><th>Actions</th></tr></thead><tbody id="keywordsTable"><tr><td colspan="6" class="empty-state">No keywords tracked yet.</td></tr></tbody></table>
+            </section>
+            <section class="section">
+                <div class="section-header"><h2 class="section-title">💡 Daily Recommendations</h2><div class="filter-tabs" id="recFilterTabs"><button class="filter-tab active" data-filter="all">All</button><button class="filter-tab" data-filter="pending">Pending</button><button class="filter-tab" data-filter="in_progress">In Progress</button><button class="filter-tab" data-filter="completed">Completed</button></div></div>
+                <div class="recommendations-list" id="recommendationsList"><div class="empty-state"><div class="empty-state-icon">📋</div><p>No recommendations yet.</p></div></div>
+            </section>
+            <section class="section">
+                <div class="section-header"><h2 class="section-title">📈 Latest Report</h2></div>
+                <div id="reportContent"><div class="empty-state"><div class="empty-state-icon">📊</div><p>No reports generated yet.</p></div></div>
+            </section>
+        </main>
+    </div>
+    <div class="loading-overlay" id="loadingOverlay"><div class="loading-spinner"></div><div class="loading-text" id="loadingText">Loading...</div></div>
+    <script>
+let keywords=[],aiMetrics=[],visibilityChart=null,currentRecFilter='all';
+async function init(){const r=await fetch('/api/auth/me');if(!r.ok){window.location.href='/login';return}const u=await r.json();if(u.user)document.getElementById('userEmail').textContent=u.user.email;await Promise.all([loadKeywords(),loadRecommendations(),loadReport(),loadMetrics(),loadTrends()]);document.querySelectorAll('#recFilterTabs .filter-tab').forEach(t=>{t.addEventListener('click',()=>{document.querySelectorAll('#recFilterTabs .filter-tab').forEach(x=>x.classList.remove('active'));t.classList.add('active');currentRecFilter=t.dataset.filter;renderRecommendations()})})}
+async function loadKeywords(){try{const r=await fetch('/api/growth/keywords');if(r.ok){keywords=await r.json();renderKeywords()}}catch(e){console.error(e)}}
+function renderKeywords(){const t=document.getElementById('keywordsTable');if(keywords.length===0){t.innerHTML='<tr><td colspan="6" class="empty-state">No keywords tracked yet.</td></tr>';return}t.innerHTML=keywords.map(k=>'<tr><td><strong>'+escapeHtml(k.keyword)+'</strong></td><td>'+(k.category||'-')+'</td><td><span class="priority-badge priority-'+k.priority+'">'+(k.priority||'medium').charAt(0).toUpperCase()+(k.priority||'medium').slice(1)+'</span></td><td>'+(k.current_position?'#'+k.current_position:'-')+'</td><td>'+(k.ctr?k.ctr+'%':'-')+'</td><td><button class="btn-secondary btn-sm" onclick="deleteKeyword('+k.id+')">Delete</button></td></tr>').join('');document.getElementById('totalKeywords').textContent=keywords.length;const p=keywords.filter(k=>k.current_position).map(k=>k.current_position);if(p.length>0)document.getElementById('avgPosition').textContent=(p.reduce((a,b)=>a+b,0)/p.length).toFixed(1)}
+async function addKeyword(e){e.preventDefault();const k=document.getElementById('keywordText').value,c=document.getElementById('keywordCategory').value,p=document.getElementById('keywordPriority').value;try{const r=await fetch('/api/growth/keywords',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({keyword:k,category:c,priority:p})});if(r.ok){document.getElementById('keywordText').value='';await loadKeywords()}}catch(e){console.error(e)}}
+async function deleteKeyword(id){if(!confirm('Delete?'))return;try{const r=await fetch('/api/growth/keywords/'+id,{method:'DELETE'});if(r.ok)await loadKeywords()}catch(e){console.error(e)}}
+async function loadRecommendations(){try{const r=await fetch('/api/growth/recommendations');if(r.ok){window.recommendations=await r.json();renderRecommendations()}}catch(e){console.error(e)}}
+function renderRecommendations(){const l=document.getElementById('recommendationsList');const r=(window.recommendations||[]).filter(x=>currentRecFilter==='all'||x.status===currentRecFilter);if(r.length===0){l.innerHTML='<div class="empty-state"><div class="empty-state-icon">📋</div><p>No recommendations yet.</p></div>';return}l.innerHTML=r.map(x=>'<div class="recommendation-card"><div class="recommendation-header"><span class="recommendation-title">'+escapeHtml(x.title)+'</span><div class="recommendation-meta"><span class="priority-badge priority-'+(x.priority||'medium')+'">'+(x.priority||'medium').charAt(0).toUpperCase()+(x.priority||'medium').slice(1)+'</span><span style="color:var(--text-secondary);font-size:0.75rem;">'+(x.status||'pending').replace('_',' ')+'</span></div></div><p class="recommendation-desc">'+escapeHtml(x.description)+'</p>'+(x.action_items?'<div class="recommendation-actions"><h4>Action Items</h4><ul>'+x.action_items.map(a=>'<li>'+escapeHtml(a)+'</li>').join('')+'</ul></div>':'')+'</div>').join('')}
+async function loadReport(){try{const r=await fetch('/api/growth/reports/latest');if(r.ok){const d=await r.json();if(d&&d.id)renderReport(d)}}catch(e){console.error(e)}}
+function renderReport(r){document.getElementById('reportContent').innerHTML='<div style="color:var(--text-secondary);font-size:0.85rem;margin-bottom:1rem;">Generated:'+new Date(r.created_at).toLocaleDateString()+'| Keywords:'+(r.total_keywords||0)+'| Checks:'+(r.total_checks||0)+'</div><div class="metrics-grid"><div class="metric-card"><div class="metric-label">Total Visibility</div><div class="metric-value">'+(r.overall_visibility_score||0)+'</div></div><div class="metric-card"><div class="metric-label">Improved</div><div class="metric-value" style="color:var(--success);">+'+(r.rankings_improved||0)+'</div></div><div class="metric-card"><div class="metric-label">Declined</div><div class="metric-value" style="color:var(--error);">'+(r.rankings_declined||0)+'</div></div></div>'}
+async function loadMetrics(){try{const r=await fetch('/api/growth/metrics/ai-visibility');aiMetrics=await r.json();renderAIVisibility()}catch(e){console.error(e)}}
+function renderAIVisibility(){const c=aiMetrics.filter(m=>m.ai_platform==='chatgpt').slice(0,5);const d=aiMetrics.filter(m=>m.ai_platform==='deepseek').slice(0,5);const p=aiMetrics.filter(m=>m.ai_platform==='perplexity').slice(0,5);const ac=c.length?Math.round(c.reduce((a,b)=>a+b.visibility_score,0)/c.length):0;const ad=d.length?Math.round(d.reduce((a,b)=>a+b.visibility_score,0)/d.length):0;const ap=p.length?Math.round(p.reduce((a,b)=>a+b.visibility_score,0)/p.length):0;document.getElementById('chatgptScoreBig').textContent=ac;document.getElementById('chatgptScoreBig').className='ai-score '+(ac>=60?'high':ac>=30?'medium':'low');document.getElementById('chatgptBar').style.width=ac+'%';document.getElementById('deepseekScoreBig').textContent=ad;document.getElementById('deepseekScoreBig').className='ai-score '+(ad>=60?'high':ad>=30?'medium':'low');document.getElementById('deepseekBar').style.width=ad+'%';document.getElementById('perplexityScoreBig').textContent=ap;document.getElementById('perplexityScoreBig').className='ai-score '+(ap>=60?'high':ap>=30?'medium':'low');document.getElementById('perplexityBar').style.width=ap+'%';document.getElementById('chatgptScore').textContent=ac>0?ac:'-';document.getElementById('deepseekScore').textContent=ad>0?ad:'-';document.getElementById('perplexityScore').textContent=ap>0?ap:'-';const cc=[...new Set(c.flatMap(x=>x.competitors_mentioned||[]))];const cd=[...new Set(d.flatMap(x=>x.competitors_mentioned||[]))];const cp=[...new Set(p.flatMap(x=>x.competitors_mentioned||[]))];document.getElementById('chatgptCompetitors').innerHTML=cc.slice(0,5).map(x=>'<span class="competitor-tag">'+escapeHtml(x)+'</span>').join('')||'<span style="color:var(--text-secondary);font-size:0.75rem;">None detected</span>';document.getElementById('deepseekCompetitors').innerHTML=cd.slice(0,5).map(x=>'<span class="competitor-tag">'+escapeHtml(x)+'</span>').join('')||'<span style="color:var(--text-secondary);font-size:0.75rem;">None detected</span>';document.getElementById('perplexityCompetitors').innerHTML=cp.slice(0,5).map(x=>'<span class="competitor-tag">'+escapeHtml(x)+'</span>').join('')||'<span style="color:var(--text-secondary);font-size:0.75rem;">None detected</span>'}
+async function loadTrends(){const d=document.getElementById('trendDays').value;try{const r=await fetch('/api/growth/trends/visibility?days='+d);if(r.ok)renderVisibilityChart(await r.json())}catch(e){console.error(e)}}
+function renderVisibilityChart(data){const ctx=document.getElementById('visibilityChart').getContext('2d');const dates=data.chatgpt?data.chatgpt.map(d=>d.date):[];if(visibilityChart)visibilityChart.destroy();visibilityChart=new Chart(ctx,{type:'line',data:{labels:dates,datasets:[{label:'ChatGPT',data:data.chatgpt?data.chatgpt.map(d=>d.score):[],borderColor:'#6366f1',backgroundColor:'rgba(99,102,241,0.1)',fill:true,tension:0.4},{label:'DeepSeek',data:data.deepseek?data.deepseek.map(d=>d.score):[],borderColor:'#f5576c',backgroundColor:'rgba(245,87,108,0.1)',fill:true,tension:0.4},{label:'Perplexity',data:data.perplexity?data.perplexity.map(d=>d.score):[],borderColor:'#4facfe',backgroundColor:'rgba(79,172,254,0.1)',fill:true,tension:0.4}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'top',labels:{color:'#94a3b8'}},tooltip:{mode:'index',intersect:false}},scales:{y:{beginAtZero:true,max:100,title:{display:true,text:'Visibility Score',color:'#94a3b8'},ticks:{color:'#94a3b8'},grid:{color:'rgba(71,85,105,0.5)'}},x:{ticks:{maxTicksLimit:10,color:'#94a3b8'},grid:{color:'rgba(71,85,105,0.5)'}}}})}
+async function runCheckNow(){if(keywords.length===0){alert('Add keywords first.');return}showLoading('Running growth check...');try{const r=await fetch('/api/growth/check-now',{method:'POST'});const d=await r.json();if(d.success){await Promise.all([loadKeywords(),loadRecommendations(),loadReport(),loadMetrics(),loadTrends()]);showLoading('Done!')}}catch(e){console.error(e);alert('Error')}finally{setTimeout(hideLoading,1500)}}
+function exportData(){window.location.href='/api/growth/keywords?format=csv'}
+function showLoading(t){document.getElementById('loadingText').textContent=t;document.getElementById('loadingOverlay').classList.add('active')}
+function hideLoading(){document.getElementById('loadingOverlay').classList.remove('active')}
+function escapeHtml(t){if(!t)return'';const d=document.createElement('div');d.textContent=t;return d.innerHTML}
+init();
+    </script>
+</body>
+</html>

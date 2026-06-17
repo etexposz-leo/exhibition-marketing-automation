@@ -1,0 +1,43 @@
+version: '3.8'
+
+services:
+  app:
+    build: .
+    container_name: exhibition-marketing-app
+    restart: unless-stopped
+    ports:
+      - "${PORT:-8000}:${PORT:-8000}"
+    environment:
+      - ENVIRONMENT=${ENVIRONMENT:-development}
+      - DATABASE_URL=${DATABASE_URL:-sqlite:///./data/marketing.db}
+      - SECRET_KEY=${SECRET_KEY:?SECRET_KEY must be set}
+      - PORT=${PORT:-8000}
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY:-}
+      - LINKEDIN_ACCESS_TOKEN=${LINKEDIN_ACCESS_TOKEN:-}
+      - FACEBOOK_ACCESS_TOKEN=${FACEBOOK_ACCESS_TOKEN:-}
+      - INSTAGRAM_ACCESS_TOKEN=${INSTAGRAM_ACCESS_TOKEN:-}
+      - X_BEARER_TOKEN=${X_BEARER_TOKEN:-}
+      - GOOGLE_BUSINESS_API_KEY=${GOOGLE_BUSINESS_API_KEY:-}
+      - HTTPS_ONLY=${HTTPS_ONLY:-false}
+    volumes:
+      - ./data:/app/data
+      - ./logs:/app/logs
+
+  # Optional: Production database (PostgreSQL)
+  # Uncomment and configure for production
+  # db:
+  #   image: postgres:15-alpine
+  #   container_name: exhibition-marketing-db
+  #   restart: unless-stopped
+  #   environment:
+  #     - POSTGRES_DB=marketing
+  #     - POSTGRES_USER=marketing
+  #     - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}
+  #   volumes:
+  #     - postgres_data:/var/lib/postgresql/data
+  #   ports:
+  #     - "5432:5432"
+
+# volumes:
+#   postgres_data:
