@@ -1,6 +1,7 @@
 """
 Authentication routes for login, register, logout, and SMS verification.
 """
+import os
 
 from fastapi import APIRouter, Request, HTTPException, Depends
 from fastapi.responses import JSONResponse, RedirectResponse
@@ -25,6 +26,12 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 # SMS configuration
 SMS_CODE_EXPIRY_MINUTES = 10
 MAX_VERIFICATION_ATTEMPTS = 5
+DEMO_VERIFICATION_CODE = "123456"
+
+
+def is_mock_mode() -> bool:
+    """Check if running in mock SMS mode."""
+    return os.environ.get("SMS_MOCK_MODE", "true").lower() == "true"
 
 
 class RegisterRequest(BaseModel):
@@ -212,9 +219,10 @@ async def check_auth(request: Request):
             "sms_verified": sms_verified,
             "user_id": user_id,
             "email": request.session.get("user_email"),
-            "username": request.session.get("username")
+            "username": request.session.get("username"),
+            "mock_mode": is_mock_mode()
         }
-    return {"authenticated": False, "sms_verified": False}
+    return {"authenticated": False, "sms_verified": False, "mock_mode": is_mock_mode()}
 
 
 @router.post("/send-sms-code")
@@ -243,8 +251,11 @@ async def send_sms_code(
         SMSVerification.user_id == user_id
     ).delete()
     
-    # Generate new code
-    code = generate_verification_code()
+    # Generate new code - use demo code in mock mode
+    if is_mock_mode():
+        code = DEMO_VERIFICATION_CODE
+    else:
+        code = generate_verification_code()
     code_hash = hash_code(code)
     expires_at = datetime.utcnow() + timedelta(minutes=SMS_CODE_EXPIRY_MINUTES)
     
@@ -324,8 +335,12 @@ async def verify_sms_code(
     verification.attempts += 1
     db.commit()
     
-    # Verify code
-    if verify_code(verify_data.code, verification.code_hash):
+    # Verify code - in mock mode, also accept "123456" directly as a fallback
+    code_valid = verify_code(verify_data.code, verification.code_hash)
+    if not code_valid and is_mock_mode() and verify_data.code == DEMO_VERIFICATION_CODE:
+        code_valid = True
+    
+    if code_valid:
         # Mark as verified
         verification.verified_at = datetime.utcnow()
         user.phone_verified = True
