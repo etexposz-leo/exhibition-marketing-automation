@@ -19,6 +19,7 @@ from app.models.models import (
 from app.services.google_seo_monitor import get_google_seo_monitor
 from app.services.chatgpt_visibility_monitor import get_chatgpt_monitor
 from app.services.deepseek_visibility_monitor import get_deepseek_monitor
+from app.services.perplexity_visibility_monitor import get_perplexity_monitor
 
 logger = logging.getLogger(__name__)
 
@@ -30,6 +31,7 @@ class GrowthAdvisor:
         self.google_seo = get_google_seo_monitor()
         self.chatgpt = get_chatgpt_monitor()
         self.deepseek = get_deepseek_monitor()
+        self.perplexity = get_perplexity_monitor()
     
     async def run_full_check(self, db: Session, user_id: int) -> Dict:
         """
@@ -48,6 +50,7 @@ class GrowthAdvisor:
             "google_seo": None,
             "chatgpt": None,
             "deepseek": None,
+            "perplexity": None,
             "recommendations": [],
             "report": None
         }
@@ -76,7 +79,15 @@ class GrowthAdvisor:
             logger.error(f"DeepSeek visibility check failed: {e}")
             results["deepseek"] = []
         
-        # 4. Generate recommendations
+        # 4. Check Perplexity visibility
+        try:
+            results["perplexity"] = await self.perplexity.check_visibility(db, user_id)
+            logger.info(f"Perplexity: {len(results['perplexity'])} keywords checked")
+        except Exception as e:
+            logger.error(f"Perplexity visibility check failed: {e}")
+            results["perplexity"] = []
+        
+        # 5. Generate recommendations
         try:
             results["recommendations"] = await self._generate_recommendations(db, user_id, results)
             logger.info(f"Generated {len(results['recommendations'])} recommendations")
@@ -151,6 +162,7 @@ class GrowthAdvisor:
         # Analyze AI visibility results
         chatgpt_results = results.get("chatgpt", [])
         deepseek_results = results.get("deepseek", [])
+        perplexity_results = results.get("perplexity", [])
         
         # Keywords not visible in ChatGPT
         not_visible_chatgpt = [r for r in chatgpt_results if not r.get("is_visible")]
@@ -186,9 +198,26 @@ class GrowthAdvisor:
                 "impact": "medium"
             })
         
+        # Keywords not visible in Perplexity
+        not_visible_perplexity = [r for r in perplexity_results if not r.get("is_visible")]
+        if len(not_visible_perplexity) > 0:
+            recommendations.append({
+                "type": "ai_visibility",
+                "priority": "medium",
+                "title": f"Improve Perplexity visibility ({len(not_visible_perplexity)} keywords not mentioned)",
+                "description": "Perplexity is gaining traction. Build citations across the web.",
+                "action_items": [
+                    "Get mentioned on Wikipedia or authoritative industry sites",
+                    "Create research-backed content that Perplexity can cite",
+                    "Ensure your content has proper citations and sources",
+                    "Build relationships with industry journalists"
+                ],
+                "impact": "medium"
+            })
+        
         # Competitor analysis
         all_competitors = set()
-        for r in chatgpt_results + deepseek_results:
+        for r in chatgpt_results + deepseek_results + perplexity_results:
             for comp in r.get("competitors_mentioned", []):
                 all_competitors.add(comp)
         
@@ -255,6 +284,7 @@ class GrowthAdvisor:
         google_results = results.get("google_seo", [])
         chatgpt_results = results.get("chatgpt", [])
         deepseek_results = results.get("deepseek", [])
+        perplexity_results = results.get("perplexity", [])
         
         # Calculate metrics
         total_keywords = len(google_results)
@@ -278,13 +308,15 @@ class GrowthAdvisor:
         # AI visibility scores
         chatgpt_scores = [r["visibility_score"] for r in chatgpt_results]
         deepseek_scores = [r["visibility_score"] for r in deepseek_results]
+        perplexity_scores = [r["visibility_score"] for r in perplexity_results]
         
         chatgpt_avg = sum(chatgpt_scores) / len(chatgpt_scores) if chatgpt_scores else 0
         deepseek_avg = sum(deepseek_scores) / len(deepseek_scores) if deepseek_scores else 0
+        perplexity_avg = sum(perplexity_scores) / len(perplexity_scores) if perplexity_scores else 0
         
         # Competitor mentions
         competitors_mentioned = set()
-        for r in chatgpt_results + deepseek_results:
+        for r in chatgpt_results + deepseek_results + perplexity_results:
             for comp in r.get("competitors_mentioned", []):
                 competitors_mentioned.add(comp)
         
@@ -307,6 +339,7 @@ class GrowthAdvisor:
 • Total clicks: {total_clicks:,}
 • ChatGPT visibility: {chatgpt_avg:.0f}/100
 • DeepSeek visibility: {deepseek_avg:.0f}/100
+• Perplexity visibility: {perplexity_avg:.0f}/100
 • Keywords improved: {keywords_improved}
 • Keywords declined: {keywords_declined}
 • Competitors mentioned: {len(competitors_mentioned)}"""
@@ -350,6 +383,7 @@ class GrowthAdvisor:
             "avg_ctr": round(avg_ctr, 2),
             "chatgpt_score": int(chatgpt_avg),
             "deepseek_score": int(deepseek_avg),
+            "perplexity_score": int(perplexity_avg),
             "keywords_improved": keywords_improved,
             "keywords_declined": keywords_declined,
             "summary": summary,
@@ -501,6 +535,151 @@ class GrowthAdvisor:
             "checked_at": c.checked_at.isoformat(),
             "source": c.source
         } for c in checks]
+    
+    async def get_visibility_trends(
+        self, 
+        db: Session, 
+        user_id: int,
+        days: int = 30
+    ) -> Dict:
+        """Get visibility trends over time for charting."""
+        from datetime import timedelta
+        start_date = datetime.utcnow() - timedelta(days=days)
+        
+        # Get all visibility checks in date range
+        checks = db.query(AIVisibilityCheck).filter(
+            AIVisibilityCheck.user_id == user_id,
+            AIVisibilityCheck.checked_at >= start_date
+        ).order_by(AIVisibilityCheck.checked_at).all()
+        
+        # Group by platform and date
+        trends = {
+            "chatgpt": [],
+            "deepseek": [],
+            "perplexity": []
+        }
+        
+        # Get unique dates
+        dates = set()
+        for check in checks:
+            dates.add(check.checked_at.date())
+        
+        dates = sorted(list(dates))
+        
+        # Calculate daily averages per platform
+        for platform in ["chatgpt", "deepseek", "perplexity"]:
+            platform_checks = [c for c in checks if c.ai_platform == platform]
+            
+            daily_scores = {}
+            for check in platform_checks:
+                d = check.checked_at.date()
+                if d not in daily_scores:
+                    daily_scores[d] = []
+                daily_scores[d].append(check.visibility_score)
+            
+            for d in dates:
+                if d in daily_scores:
+                    avg = sum(daily_scores[d]) / len(daily_scores[d])
+                    trends[platform].append({
+                        "date": d.isoformat(),
+                        "score": round(avg, 1)
+                    })
+                else:
+                    trends[platform].append({
+                        "date": d.isoformat(),
+                        "score": None
+                    })
+        
+        return trends
+    
+    async def get_seo_trends(
+        self, 
+        db: Session, 
+        user_id: int,
+        days: int = 30
+    ) -> Dict:
+        """Get SEO trends over time for charting."""
+        from datetime import timedelta
+        start_date = datetime.utcnow() - timedelta(days=days)
+        
+        checks = db.query(KeywordRankingCheck).filter(
+            KeywordRankingCheck.user_id == user_id,
+            KeywordRankingCheck.checked_at >= start_date
+        ).order_by(KeywordRankingCheck.checked_at).all()
+        
+        # Group by date
+        dates = set()
+        for check in checks:
+            dates.add(check.checked_at.date())
+        
+        dates = sorted(list(dates))
+        
+        daily_data = {"positions": [], "impressions": [], "clicks": []}
+        
+        for d in dates:
+            day_checks = [c for c in checks if c.checked_at.date() == d]
+            if day_checks:
+                avg_pos = sum(c.position for c in day_checks) / len(day_checks)
+                total_imp = sum(c.impressions for c in day_checks)
+                total_clicks = sum(c.clicks for c in day_checks)
+                daily_data["positions"].append({"date": d.isoformat(), "value": round(avg_pos, 1)})
+                daily_data["impressions"].append({"date": d.isoformat(), "value": total_imp})
+                daily_data["clicks"].append({"date": d.isoformat(), "value": total_clicks})
+        
+        return daily_data
+    
+    async def get_competitor_trends(
+        self, 
+        db: Session, 
+        user_id: int,
+        days: int = 30
+    ) -> Dict:
+        """Get competitor mention trends over time."""
+        from datetime import timedelta
+        start_date = datetime.utcnow() - timedelta(days=days)
+        
+        # Get all visibility checks
+        checks = db.query(AIVisibilityCheck).filter(
+            AIVisibilityCheck.user_id == user_id,
+            AIVisibilityCheck.checked_at >= start_date
+        ).all()
+        
+        # Count competitor mentions by date
+        competitor_mentions = {}
+        for check in checks:
+            d = check.checked_at.date()
+            if d not in competitor_mentions:
+                competitor_mentions[d] = {}
+            
+            competitors = json.loads(check.competitors_mentioned) if check.competitors_mentioned else []
+            for comp in competitors:
+                competitor_mentions[d][comp] = competitor_mentions[d].get(comp, 0) + 1
+        
+        # Get top 5 competitors by total mentions
+        totals = {}
+        for day_data in competitor_mentions.values():
+            for comp, count in day_data.items():
+                totals[comp] = totals.get(comp, 0) + count
+        
+        top_competitors = sorted(totals.items(), key=lambda x: -x[1])[:5]
+        top_competitor_names = [c[0] for c in top_competitors]
+        
+        # Build trend data
+        dates = sorted(list(competitor_mentions.keys()))
+        trends = {}
+        
+        for comp in top_competitor_names:
+            trends[comp] = []
+            for d in dates:
+                trends[comp].append({
+                    "date": d.isoformat(),
+                    "mentions": competitor_mentions[d].get(comp, 0)
+                })
+        
+        return {
+            "competitors": top_competitor_names,
+            "trends": trends
+        }
 
 
 # Singleton instance

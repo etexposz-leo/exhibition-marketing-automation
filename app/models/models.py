@@ -40,6 +40,10 @@ class User(Base):
     company_name = Column(String(200), nullable=True)  # Company name
     is_active = Column(Boolean, default=True)
     is_demo = Column(Boolean, default=False)  # Demo account flag
+    # Phone verification fields
+    phone_number = Column(String(20), nullable=True)
+    phone_verified = Column(Boolean, default=False)
+    sms_verified_at = Column(DateTime, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -259,6 +263,178 @@ class DailyGrowthReport(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
 
+# ==================== Knowledge Base / RAG Models ====================
+
+
+class Document(Base):
+    """Uploaded documents for Knowledge Base RAG."""
+    __tablename__ = "documents"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, nullable=False, index=True)
+    title = Column(String(500), nullable=False)
+    filename = Column(String(500), nullable=False)
+    document_type = Column(String(100), nullable=True)  # exhibitor_manual, venue_rules, fire_safety, electrical, hanging_signs, labor_rules, booth_design, other
+    event_name = Column(String(300), nullable=True)  # CES, NAB, InfoComm, etc.
+    venue_name = Column(String(300), nullable=True)
+    year = Column(Integer, nullable=True)
+    file_size = Column(Integer, nullable=True)  # bytes
+    file_path = Column(String(500), nullable=True)  # Storage path
+    status = Column(String(50), default="processing")  # processing, indexed, error
+    chunk_count = Column(Integer, default=0)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class DocumentChunk(Base):
+    """Document chunks for RAG retrieval."""
+    __tablename__ = "document_chunks"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, nullable=False, index=True)
+    document_id = Column(Integer, nullable=False, index=True)
+    chunk_index = Column(Integer, nullable=False)
+    content = Column(Text, nullable=False)
+    metadata_json = Column(Text, nullable=True)  # JSON with additional metadata
+    embedding = Column(Text, nullable=True)  # Vector embedding (stored as JSON string for SQLite compatibility)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class RAGQuery(Base):
+    """RAG query history with answers."""
+    __tablename__ = "rag_queries"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, nullable=False, index=True)
+    question = Column(Text, nullable=False)
+    answer = Column(Text, nullable=False)
+    sources_json = Column(Text, nullable=True)  # JSON array of source documents/chunks
+    provider = Column(String(50), default="mock")  # mock, openai, deepseek, nvidia
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+# ==================== Compliance Models ====================
+
+
+class ComplianceProject(Base):
+    """Compliance checking project."""
+    __tablename__ = "compliance_projects"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, nullable=False, index=True)
+    name = Column(String(300), nullable=False)
+    event_name = Column(String(300), nullable=True)
+    venue_name = Column(String(300), nullable=True)
+    booth_size = Column(String(100), nullable=True)  # e.g., "20x20"
+    booth_height = Column(Float, nullable=True)
+    status = Column(String(50), default="draft")  # draft, checking, passed, failed
+    compliance_score = Column(Integer, nullable=True)  # 0-100
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class ComplianceViolation(Base):
+    """Compliance violation records."""
+    __tablename__ = "compliance_violations"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, nullable=False, index=True)
+    project_id = Column(Integer, nullable=False, index=True)
+    rule_name = Column(String(300), nullable=False)
+    rule_source = Column(String(200), nullable=True)  # Document reference
+    severity = Column(String(20), default="warning")  # critical, warning, info
+    description = Column(Text, nullable=True)
+    recommendation = Column(Text, nullable=True)
+    is_resolved = Column(Boolean, default=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    resolved_at = Column(DateTime, nullable=True)
+
+
+# ==================== Event Workspace Models ====================
+
+
+class Event(Base):
+    """Event workspace for exhibition management."""
+    __tablename__ = "events"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, nullable=False, index=True)
+    event_name = Column(String(500), nullable=False)
+    venue = Column(String(500), nullable=True)
+    city = Column(String(200), nullable=True)
+    country = Column(String(200), nullable=True)
+    start_date = Column(Date, nullable=True)
+    end_date = Column(Date, nullable=True)
+    organizer = Column(String(500), nullable=True)
+    website = Column(String(500), nullable=True)
+    status = Column(String(50), default="active")  # active, completed, cancelled
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class EventDocument(Base):
+    """Documents uploaded for specific events."""
+    __tablename__ = "event_documents"
+
+    id = Column(Integer, primary_key=True, index=True)
+    event_id = Column(Integer, nullable=False, index=True)
+    user_id = Column(Integer, nullable=False, index=True)
+    filename = Column(String(500), nullable=False)
+    original_filename = Column(String(500), nullable=True)
+    file_type = Column(String(50), nullable=True)  # pdf, docx, txt
+    file_size = Column(Integer, nullable=True)  # bytes
+    file_path = Column(String(500), nullable=True)  # Storage path
+    document_type = Column(String(100), nullable=True)  # exhibitor_manual, venue_rules, etc.
+    status = Column(String(50), default="processing")  # processing, indexed, error
+    chunk_count = Column(Integer, default=0)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class EventDocumentChunk(Base):
+    """Document chunks for event RAG retrieval."""
+    __tablename__ = "event_document_chunks"
+
+    id = Column(Integer, primary_key=True, index=True)
+    event_id = Column(Integer, nullable=False, index=True)
+    user_id = Column(Integer, nullable=False, index=True)
+    document_id = Column(Integer, nullable=False, index=True)
+    chunk_index = Column(Integer, nullable=False)
+    content = Column(Text, nullable=False)
+    page_number = Column(Integer, nullable=True)
+    metadata_json = Column(Text, nullable=True)  # JSON with additional metadata
+    embedding = Column(Text, nullable=True)  # Vector embedding (stored as JSON string)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class EventQuery(Base):
+    """Event AI Assistant query history."""
+    __tablename__ = "event_queries"
+
+    id = Column(Integer, primary_key=True, index=True)
+    event_id = Column(Integer, nullable=False, index=True)
+    user_id = Column(Integer, nullable=False, index=True)
+    question = Column(Text, nullable=False)
+    answer = Column(Text, nullable=False)
+    sources_json = Column(Text, nullable=True)  # JSON array of source documents/chunks
+    provider = Column(String(50), default="mock")  # mock, openai, deepseek, nvidia
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class SMSVerification(Base):
+    """SMS verification codes for phone verification."""
+    __tablename__ = "sms_verifications"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, nullable=False, index=True)
+    phone_number = Column(String(20), nullable=False)
+    code_hash = Column(String(255), nullable=False)  # Hashed verification code
+    attempts = Column(Integer, default=0)  # Number of verification attempts
+    expires_at = Column(DateTime, nullable=False)
+    verified_at = Column(DateTime, nullable=True)  # When successfully verified
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
 # ==================== Marketing Ad Draft Models ====================
 
 
@@ -281,24 +457,24 @@ class AdDraft(Base):
     user_id = Column(Integer, nullable=False, index=True)
     
     # Platform and type
-    platform = Column(String(50), nullable=False)  # google_ads, linkedin, facebook, google_business, email, seo_article
-    campaign_type = Column(String(50), nullable=False)  # search_ad, display_ad, sponsored_post, post, article, newsletter
+    platform = Column(String(50), nullable=False)
+    campaign_type = Column(String(50), nullable=False)
     
     # Content
     title = Column(String(500), nullable=True)
     body = Column(Text, nullable=True)
-    cta = Column(String(200), nullable=True)  # Call to action
+    cta = Column(String(200), nullable=True)
     image_url = Column(String(500), nullable=True)
     
     # Targeting
-    target_keywords = Column(Text, nullable=True)  # JSON array
-    target_audience = Column(Text, nullable=True)  # JSON object
-    target_locations = Column(Text, nullable=True)  # JSON array
-    target_age_range = Column(String(50), nullable=True)  # e.g., "25-54"
+    target_keywords = Column(Text, nullable=True)
+    target_audience = Column(Text, nullable=True)
+    target_locations = Column(Text, nullable=True)
+    target_age_range = Column(String(50), nullable=True)
     
     # Campaign details
     landing_page = Column(String(500), nullable=True)
-    suggested_budget = Column(Float, default=0.0)  # In cents
+    suggested_budget = Column(Float, default=0.0)
     daily_budget = Column(Float, default=0.0)
     schedule_time = Column(DateTime, nullable=True)
     start_date = Column(Date, nullable=True)
@@ -317,12 +493,12 @@ class AdDraft(Base):
     
     # Publication results
     published_at = Column(DateTime, nullable=True)
-    platform_post_id = Column(String(200), nullable=True)  # ID from platform after publish
+    platform_post_id = Column(String(200), nullable=True)
     error_message = Column(Text, nullable=True)
     
     # Safety flags
     safety_check_passed = Column(Boolean, default=False)
-    safety_warnings = Column(Text, nullable=True)  # JSON array of warnings
+    safety_warnings = Column(Text, nullable=True)
     leo_approved = Column(Boolean, default=False)
     has_budget_cap = Column(Boolean, default=False)
     has_target_platform = Column(Boolean, default=False)
@@ -330,18 +506,18 @@ class AdDraft(Base):
     passed_content_check = Column(Boolean, default=False)
     
     # SEO specific
-    seo_keywords = Column(Text, nullable=True)  # JSON array
+    seo_keywords = Column(Text, nullable=True)
     seo_meta_description = Column(String(300), nullable=True)
-    seo_reading_time = Column(Integer, nullable=True)  # minutes
+    seo_reading_time = Column(Integer, nullable=True)
     
     # Email specific
     email_subject = Column(String(300), nullable=True)
-    email_recipients = Column(Text, nullable=True)  # JSON array
+    email_recipients = Column(Text, nullable=True)
     email_template_id = Column(Integer, nullable=True)
     
     # Versioning
     version = Column(Integer, default=1)
-    parent_draft_id = Column(Integer, nullable=True)  # For A/B variants
+    parent_draft_id = Column(Integer, nullable=True)
     
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
@@ -353,11 +529,11 @@ class ApprovalQueue(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     draft_id = Column(Integer, nullable=False, index=True)
-    user_id = Column(Integer, nullable=False, index=True)  # Who requested approval
+    user_id = Column(Integer, nullable=False, index=True)
     
     # Status
-    status = Column(String(30), default="pending")  # pending, approved, rejected
-    priority = Column(String(20), default="normal")  # low, normal, high, urgent
+    status = Column(String(30), default="pending")
+    priority = Column(String(20), default="normal")
     
     # Approver info
     reviewed_by = Column(Integer, nullable=True)
@@ -366,7 +542,7 @@ class ApprovalQueue(Base):
     
     # Safety check results
     safety_checks_passed = Column(Boolean, default=False)
-    safety_issues = Column(Text, nullable=True)  # JSON array of issues
+    safety_issues = Column(Text, nullable=True)
     
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
@@ -381,14 +557,14 @@ class PublishLog(Base):
     user_id = Column(Integer, nullable=False, index=True)
     
     # Action
-    action = Column(String(50), nullable=False)  # safety_check, dry_run, publish, approve, reject
-    status = Column(String(30), nullable=False)  # success, failed, skipped
+    action = Column(String(50), nullable=False)
+    status = Column(String(30), nullable=False)
     
     # Details
     platform = Column(String(50), nullable=True)
-    mock_mode = Column(Boolean, default=True)  # True = did NOT call real API
-    request_data = Column(Text, nullable=True)  # JSON of what was sent
-    response_data = Column(Text, nullable=True)  # JSON of response (mock or real)
+    mock_mode = Column(Boolean, default=True)
+    request_data = Column(Text, nullable=True)
+    response_data = Column(Text, nullable=True)
     error_message = Column(Text, nullable=True)
     
     # Cost tracking (always 0 in mock mode)

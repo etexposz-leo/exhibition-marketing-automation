@@ -18,6 +18,8 @@ AI-powered marketing content generation and social media publishing platform for
 - **Google SEO Monitoring** - Track keyword rankings, impressions, CTR, and position trends
 - **ChatGPT Visibility Monitoring** - Check if your brand appears in AI-generated responses
 - **DeepSeek Visibility Monitoring** - Monitor visibility on emerging AI platforms
+- **Perplexity Visibility Monitoring** - Track brand mentions in Perplexity AI search results
+- **AI Visibility Trends** - Chart.js visualizations showing visibility over time
 - **Competitor Tracking** - Track competitor mentions in AI results
 - **Daily Growth Reports** - Get actionable recommendations and next-step action plans
 - **Mock Mode** - Works without API credentials for testing
@@ -81,6 +83,7 @@ The demo account comes with:
 | `/settings` | API keys and platform settings |
 | `/history` | Publishing history |
 | `/growth` | Growth Advisor (SEO & AI visibility) |
+| `/knowledge-base` | Knowledge Base (RAG) - Upload manuals, query compliance rules |
 
 ## API Endpoints
 
@@ -115,6 +118,17 @@ The demo account comes with:
 | `/api/scheduled-posts` | POST | Create scheduled post |
 | `/api/scheduled-posts/{id}` | DELETE | Delete scheduled post |
 
+### Knowledge Base / RAG
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/rag/documents` | GET | List uploaded documents |
+| `/api/rag/documents/upload` | POST | Upload document (PDF, DOCX, TXT) |
+| `/api/rag/documents/{id}` | DELETE | Delete document |
+| `/api/rag/ask` | POST | Ask question using RAG |
+| `/api/rag/queries` | GET | List query history |
+| `/api/rag/status` | GET | Get RAG system status |
+| `/api/rag/load-demo` | POST | Load demo content (demo@example.com only) |
+
 ### Settings
 | Endpoint | Method | Description |
 |----------|--------|-------------|
@@ -136,6 +150,9 @@ The demo account comes with:
 | `/api/growth/recommendations` | GET | Get recommendations |
 | `/api/growth/metrics/seo` | GET | Get SEO metrics |
 | `/api/growth/metrics/ai-visibility` | GET | Get AI visibility metrics |
+| `/api/growth/trends/visibility` | GET | Get AI visibility trends |
+| `/api/growth/trends/seo` | GET | Get SEO trends |
+| `/api/growth/trends/competitors` | GET | Get competitor trends |
 | `/api/growth/status` | GET | Get API configuration status |
 
 ## Growth Advisor
@@ -150,16 +167,31 @@ The Growth Advisor helps exhibition booth companies monitor their online presenc
 - Records position trends over time
 - Uses Google Search Console API if configured, otherwise mock mode
 
-#### ChatGPT Visibility
+#### AI Platform Visibility
+Monitors brand visibility across three AI platforms:
+
+**ChatGPT Visibility**
 - Checks if your brand appears in ChatGPT responses
 - Detects brand mentions: ET-EXPO, et-expo.com, etexpous.com, www.et-expo.com, www.etexpous.com
 - Identifies competitor mentions in AI responses
 - Generates visibility score (0-100)
 
-#### DeepSeek Visibility
+**DeepSeek Visibility**
 - Same as ChatGPT but for DeepSeek platform
 - Monitors emerging AI search visibility
 - Tracks brand and competitor mentions
+
+**Perplexity Visibility**
+- Monitors brand presence in Perplexity AI search
+- Tracks citations and sources in AI responses
+- Tracks competitor mentions across research queries
+
+### Trend Charts
+
+The Growth Advisor includes Chart.js visualizations for:
+- **AI Platform Visibility Trends** - Line chart showing visibility scores over time
+- **SEO Trends** - Position, impressions, and clicks over time
+- **Competitor Trends** - Track which competitors appear most in AI results
 
 ### Mock Mode
 
@@ -178,8 +210,9 @@ The Growth Advisor runs a daily check at **08:00 UTC** automatically:
 1. Checks all active keywords for Google rankings
 2. Queries ChatGPT for visibility
 3. Queries DeepSeek for visibility
-4. Generates updated recommendations
-5. Creates daily growth report
+4. Queries Perplexity for visibility
+5. Generates updated recommendations
+6. Creates daily growth report
 
 ## Database Migrations
 
@@ -208,6 +241,7 @@ DATABASE_URL=sqlite:///./data/marketing.db
 # AI Services (optional)
 OPENAI_API_KEY=sk-...          # Content generation + ChatGPT monitoring
 DEEPSEEK_API_KEY=...           # DeepSeek monitoring
+PERPLEXITY_API_KEY=...         # Perplexity monitoring
 
 # Growth Advisor (optional)
 GOOGLE_SEARCH_CONSOLE_CREDENTIALS={"type":"service_account",...}  # Google SEO monitoring

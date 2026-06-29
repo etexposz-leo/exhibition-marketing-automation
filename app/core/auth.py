@@ -61,6 +61,11 @@ def create_demo_account(db: Session) -> User:
     """Create demo account if it doesn't exist."""
     existing = get_user_by_email(db, "demo@example.com")
     if existing:
+        # Mark as phone verified for demo
+        if not existing.phone_verified:
+            existing.phone_verified = True
+            existing.sms_verified_at = datetime.utcnow()
+            db.commit()
         return existing
     
     user = create_user(
@@ -71,6 +76,10 @@ def create_demo_account(db: Session) -> User:
         company_name="Exhibition Design Co.",
         is_demo=True
     )
+    
+    # Mark as phone verified for demo
+    user.phone_verified = True
+    user.sms_verified_at = datetime.utcnow()
     
     # Create demo data
     create_demo_data(db, user.id)

@@ -29,15 +29,23 @@ from app.services.scheduler import scheduler
 router = APIRouter()
 
 
+def require_sms_verified(request: Request) -> int:
+    """Require user to be authenticated and SMS verified. Returns user_id."""
+    user_id = request.session.get("user_id")
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    if not request.session.get("sms_verified"):
+        raise HTTPException(status_code=403, detail="Phone verification required")
+    return user_id
+
+
 # ==================== Campaign Endpoints ====================
 
 
 @router.post("/campaigns", response_model=CampaignResponse)
 async def create_campaign(campaign: CampaignCreate, request: Request, db: Session = Depends(get_db)):
     """Create a new marketing campaign."""
-    user_id = request.session.get("user_id")
-    if not user_id:
-        raise HTTPException(status_code=401, detail="Not authenticated")
+    user_id = require_sms_verified(request)
     
     db_campaign = Campaign(
         user_id=user_id,
@@ -61,9 +69,7 @@ async def create_campaign(campaign: CampaignCreate, request: Request, db: Sessio
 @router.get("/campaigns", response_model=list[CampaignResponse])
 async def list_campaigns(request: Request, skip: int = 0, limit: int = 20, db: Session = Depends(get_db)):
     """List all campaigns with their generated content for current user."""
-    user_id = request.session.get("user_id")
-    if not user_id:
-        raise HTTPException(status_code=401, detail="Not authenticated")
+    user_id = require_sms_verified(request)
     
     campaigns = db.query(Campaign).filter(
         Campaign.user_id == user_id
@@ -214,9 +220,7 @@ async def generate_content(
     - Google Business Profile post
     - Image prompts for AI generation
     """
-    user_id = request.session.get("user_id")
-    if not user_id:
-        raise HTTPException(status_code=401, detail="Not authenticated")
+    user_id = require_sms_verified(request)
     
     # Create the campaign
     db_campaign = Campaign(
@@ -395,9 +399,7 @@ async def get_social_account(account_id: int, db: Session = Depends(get_db)):
 @router.delete("/social-accounts/{account_id}")
 async def delete_social_account(account_id: int, request: Request, db: Session = Depends(get_db)):
     """Delete a social media account."""
-    user_id = request.session.get("user_id")
-    if not user_id:
-        raise HTTPException(status_code=401, detail="Not authenticated")
+    user_id = require_sms_verified(request)
     account = db.query(SocialAccount).filter(SocialAccount.id == account_id, SocialAccount.user_id == user_id).first()
     if not account:
         raise HTTPException(status_code=404, detail="Social account not found")
@@ -412,17 +414,21 @@ async def delete_social_account(account_id: int, request: Request, db: Session =
 
 @router.post("/schedule", response_model=ScheduledPostResponse)
 async def schedule_post(
-    request: SchedulePostRequest,
+    request_body: SchedulePostRequest,
+    req: Request,
     db: Session = Depends(get_db)
 ):
     """Schedule a post for automatic publishing."""
+    user_id = require_sms_verified(req)
+    
     db_post = ScheduledPost(
-        campaign_id=request.campaign_id,
-        content_id=request.content_id,
-        platform=request.platform,
-        social_account_id=request.social_account_id,
-        content=request.content,
-        scheduled_at=request.scheduled_at,
+        user_id=user_id,
+        campaign_id=request_body.campaign_id,
+        content_id=request_body.content_id,
+        platform=request_body.platform,
+        social_account_id=request_body.social_account_id,
+        content=request_body.content,
+        scheduled_at=request_body.scheduled_at,
         status="scheduled"
     )
     db.add(db_post)
@@ -447,12 +453,15 @@ async def schedule_post(
 
 @router.get("/scheduled-posts", response_model=list[ScheduledPostResponse])
 async def list_scheduled_posts(
+    request: Request,
     platform: Optional[str] = None,
     status: Optional[str] = None,
     db: Session = Depends(get_db)
 ):
     """List all scheduled posts."""
-    query = db.query(ScheduledPost)
+    user_id = require_sms_verified(request)
+    
+    query = db.query(ScheduledPost).filter(ScheduledPost.user_id == user_id)
     
     if platform:
         query = query.filter(ScheduledPost.platform == platform)
@@ -481,9 +490,14 @@ async def list_scheduled_posts(
 
 
 @router.get("/scheduled-posts/{post_id}", response_model=ScheduledPostResponse)
-async def get_scheduled_post(post_id: int, db: Session = Depends(get_db)):
+async def get_scheduled_post(post_id: int, request: Request, db: Session = Depends(get_db)):
     """Get a specific scheduled post."""
-    post = db.query(ScheduledPost).filter(ScheduledPost.id == post_id).first()
+    user_id = require_sms_verified(request)
+    
+    post = db.query(ScheduledPost).filter(
+        ScheduledPost.id == post_id,
+        ScheduledPost.user_id == user_id
+    ).first()
     if not post:
         raise HTTPException(status_code=404, detail="Scheduled post not found")
     
@@ -504,9 +518,14 @@ async def get_scheduled_post(post_id: int, db: Session = Depends(get_db)):
 
 
 @router.delete("/scheduled-posts/{post_id}")
-async def delete_scheduled_post(post_id: int, db: Session = Depends(get_db)):
+async def delete_scheduled_post(post_id: int, request: Request, db: Session = Depends(get_db)):
     """Delete a scheduled post."""
-    post = db.query(ScheduledPost).filter(ScheduledPost.id == post_id).first()
+    user_id = require_sms_verified(request)
+    
+    post = db.query(ScheduledPost).filter(
+        ScheduledPost.id == post_id,
+        ScheduledPost.user_id == user_id
+    ).first()
     if not post:
         raise HTTPException(status_code=404, detail="Scheduled post not found")
     
@@ -521,62 +540,66 @@ async def delete_scheduled_post(post_id: int, db: Session = Depends(get_db)):
 
 @router.post("/publish-now")
 async def publish_now(
-    request: PublishNowRequest,
+    request_body: PublishNowRequest,
+    req: Request,
     db: Session = Depends(get_db)
 ):
     """Publish a post immediately to the specified platform."""
+    user_id = require_sms_verified(req)
+    
     # Get social account if specified
     account = None
-    if request.social_account_id:
+    if request_body.social_account_id:
         account = db.query(SocialAccount).filter(
-            SocialAccount.id == request.social_account_id
+            SocialAccount.id == request_body.social_account_id
         ).first()
     
     # Check if mock mode is enabled
     use_mock = account.is_mock_mode if account else True
     
     # Publish based on platform and account configuration
-    if request.platform == "linkedin":
+    if request_body.platform == "linkedin":
         if use_mock:
             from app.services.mock_service import get_mock_service
             service = get_mock_service("linkedin", account.account_name if account else None)
-            result = service.post_text(request.content)
+            result = service.post_text(request_body.content)
         else:
             from app.services.linkedin_service import get_linkedin_service
             access_token = account.access_token if account else None
             service = get_linkedin_service(access_token)
-            result = await service.post_text(request.content)
-    elif request.platform == "facebook":
+            result = await service.post_text(request_body.content)
+    elif request_body.platform == "facebook":
         if use_mock:
             from app.services.mock_service import get_mock_service
             service = get_mock_service("facebook", account.account_name if account else None)
-            result = service.post_text(request.content)
+            result = service.post_text(request_body.content)
         else:
             from app.services.facebook_service import get_facebook_service
             access_token = account.access_token if account else None
             page_id = account.account_id if account else None
             service = get_facebook_service(access_token)
-            result = await service.post_to_page(request.content, page_id)
-    elif request.platform == "google_business":
+            result = await service.post_to_page(request_body.content, page_id)
+    elif request_body.platform == "google_business":
         if use_mock:
             from app.services.mock_service import get_mock_service
             service = get_mock_service("google_business", account.account_name if account else None)
-            result = service.post_text(request.content)
+            result = service.post_text(request_body.content)
         else:
             from app.services.google_business_service import get_google_business_service
             api_key = account.access_token if account else None
             access_token = account.refresh_token if account else None
             location_id = account.account_id if account else None
             service = get_google_business_service(api_key, access_token)
-            result = await service.create_local_post(request.content, location_id)
+            result = await service.create_local_post(request_body.content, location_id)
     else:
-        return {"success": False, "error": f"Unknown platform: {request.platform}"}
+        return {"success": False, "error": f"Unknown platform: {request_body.platform}"}
     
     # Save to scheduled posts for record
     db_post = ScheduledPost(
-        platform=request.platform,
-        social_account_id=request.social_account_id,
-        content=request.content,
+        user_id=user_id,
+        platform=request_body.platform,
+        social_account_id=request_body.social_account_id,
+        content=request_body.content,
         scheduled_at=None,
         published_at=None,
         status="published" if result["success"] else "failed",
@@ -1460,9 +1483,7 @@ async def delete_social_account(account_id: int, db: Session = Depends(get_db)):
 @router.post("/settings/api-keys")
 async def save_api_key(request: Request, db: Session = Depends(get_db)):
     """Save AI API key for a service."""
-    user_id = request.session.get("user_id")
-    if not user_id:
-        raise HTTPException(status_code=401, detail="Not authenticated")
+    user_id = require_sms_verified(request)
     
     from pydantic import BaseModel
     

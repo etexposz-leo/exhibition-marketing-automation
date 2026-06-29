@@ -1,0 +1,500 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Knowledge Base | Marketing Automation</title>
+    <link rel="stylesheet" href="/static/css/styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        .kb-container { max-width: 1400px; margin: 0 auto; }
+        .kb-header { text-align: center; padding: 1.5rem 0; border-bottom: 1px solid var(--surface-light); margin-bottom: 1.5rem; }
+        .kb-title { font-size: 1.75rem; background: linear-gradient(135deg, var(--primary), #818cf8); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .kb-subtitle { color: var(--text-secondary); font-size: 0.9rem; margin-top: 0.5rem; }
+        .kb-actions { display: flex; justify-content: center; gap: 0.75rem; margin-top: 1rem; }
+        
+        .status-bar { display: flex; justify-content: center; gap: 0.75rem; margin-bottom: 1.5rem; flex-wrap: wrap; }
+        .status-item { display: flex; align-items: center; gap: 0.5rem; padding: 0.5rem 1rem; background: var(--surface); border-radius: 20px; font-size: 0.8rem; }
+        .status-label { color: var(--text-secondary); }
+        .status-badge { padding: 0.25rem 0.6rem; border-radius: 4px; font-size: 0.7rem; font-weight: 600; }
+        .badge-mock { background: var(--warning); color: #000; }
+        .badge-live { background: var(--success); color: white; }
+        
+        .section { background: var(--surface); border-radius: 12px; padding: 1.5rem; margin-bottom: 1.5rem; border: 1px solid var(--surface-light); }
+        .section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem; flex-wrap: wrap; gap: 0.75rem; }
+        .section-title { font-size: 1.1rem; font-weight: 600; color: var(--text); }
+        
+        /* Upload Section */
+        .upload-area { border: 2px dashed var(--border); border-radius: 12px; padding: 2rem; text-align: center; transition: all 0.3s; cursor: pointer; }
+        .upload-area:hover { border-color: var(--primary); background: rgba(99, 102, 241, 0.05); }
+        .upload-area.dragover { border-color: var(--primary); background: rgba(99, 102, 241, 0.1); }
+        .upload-icon { font-size: 3rem; margin-bottom: 1rem; }
+        .upload-text { color: var(--text-secondary); margin-bottom: 0.5rem; }
+        .upload-hint { font-size: 0.8rem; color: var(--text-secondary); opacity: 0.7; }
+        
+        /* Form Styles */
+        .upload-form { display: none; grid-template-columns: 1fr auto auto; gap: 0.75rem; margin-top: 1.5rem; }
+        .upload-form.active { display: grid; }
+        .upload-form input, .upload-form select { padding: 0.6rem 0.85rem; border: 2px solid var(--surface-light); border-radius: 8px; font-size: 0.85rem; background: var(--bg); color: var(--text); }
+        .upload-form input:focus, .upload-form select:focus { outline: none; border-color: var(--primary); }
+        
+        /* Documents List */
+        .documents-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1rem; }
+        .doc-card { background: var(--bg); border: 1px solid var(--surface-light); border-radius: 10px; padding: 1.25rem; transition: all 0.2s; }
+        .doc-card:hover { border-color: var(--primary); }
+        .doc-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.75rem; }
+        .doc-title { font-weight: 600; font-size: 0.95rem; color: var(--text); }
+        .doc-type { font-size: 0.7rem; padding: 0.2rem 0.5rem; border-radius: 4px; background: var(--surface-light); color: var(--text-secondary); }
+        .doc-meta { font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 0.75rem; }
+        .doc-status { display: flex; align-items: center; gap: 0.5rem; font-size: 0.75rem; }
+        .doc-status-indexed { color: var(--success); }
+        .doc-status-processing { color: var(--warning); }
+        .doc-actions { display: flex; gap: 0.5rem; }
+        
+        /* Ask Section */
+        .ask-container { display: grid; grid-template-columns: 1fr 350px; gap: 1.5rem; }
+        @media (max-width: 900px) { .ask-container { grid-template-columns: 1fr; } }
+        
+        .question-input { display: flex; gap: 0.75rem; margin-bottom: 1rem; }
+        .question-input input { flex: 1; padding: 0.85rem 1rem; border: 2px solid var(--surface-light); border-radius: 10px; font-size: 0.9rem; background: var(--bg); color: var(--text); }
+        .question-input input:focus { outline: none; border-color: var(--primary); }
+        
+        .answer-area { background: var(--bg); border-radius: 10px; padding: 1.25rem; min-height: 300px; }
+        .answer-placeholder { color: var(--text-secondary); text-align: center; padding: 2rem; }
+        .answer-text { color: var(--text); line-height: 1.6; white-space: pre-wrap; }
+        
+        .sources-section { margin-top: 1.5rem; }
+        .source-item { background: var(--surface); border-radius: 8px; padding: 1rem; margin-bottom: 0.75rem; }
+        .source-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; }
+        .source-title { font-weight: 600; font-size: 0.85rem; color: var(--text); }
+        .source-badge { font-size: 0.7rem; padding: 0.2rem 0.5rem; border-radius: 4px; background: rgba(99, 102, 241, 0.2); color: var(--primary); }
+        .source-excerpt { font-size: 0.85rem; color: var(--text-secondary); line-height: 1.5; }
+        
+        /* History Panel */
+        .history-panel { background: var(--bg); border-radius: 10px; overflow: hidden; }
+        .history-item { padding: 1rem; border-bottom: 1px solid var(--surface-light); cursor: pointer; transition: background 0.2s; }
+        .history-item:hover { background: var(--surface); }
+        .history-item:last-child { border-bottom: none; }
+        .history-question { font-weight: 500; font-size: 0.85rem; color: var(--text); margin-bottom: 0.25rem; }
+        .history-time { font-size: 0.75rem; color: var(--text-secondary); }
+        .history-provider { font-size: 0.7rem; padding: 0.1rem 0.4rem; border-radius: 3px; background: var(--surface-light); color: var(--text-secondary); }
+        
+        /* Loading State */
+        .loading-spinner { width: 40px; height: 40px; border: 3px solid var(--surface-light); border-top-color: var(--primary); border-radius: 50%; animation: spin 1s linear infinite; margin: 2rem auto; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        
+        /* Empty State */
+        .empty-state { text-align: center; padding: 3rem; color: var(--text-secondary); }
+        .empty-state-icon { font-size: 3rem; margin-bottom: 1rem; }
+        
+        .demo-notice { background: rgba(99, 102, 241, 0.1); border: 1px solid var(--primary); border-radius: 8px; padding: 1rem; margin-bottom: 1.5rem; display: flex; align-items: center; gap: 0.75rem; }
+        .demo-notice-icon { font-size: 1.5rem; }
+        .demo-notice-text { font-size: 0.85rem; color: var(--text); }
+        .demo-notice-btn { margin-left: auto; }
+    </style>
+</head>
+<body>
+    {% include 'components/nav.html' %}
+    
+    <div class="main-wrapper">
+        <main class="main-content">
+            <p class="kb-subtitle">Upload exhibitor manuals, venue rules, and query your compliance knowledge</p>
+            <div class="kb-actions">
+                <button class="btn-secondary" onclick="showUploadForm()">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                    Upload Document
+                </button>
+                <button class="btn-primary" id="loadDemoBtn" onclick="loadDemoContent()" style="display: none;">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+                    Load Demo Content
+                </button>
+            </div>
+        </header>
+
+        <main class="main-content">
+            <!-- Status Bar -->
+            <div class="status-bar">
+                <div class="status-item">
+                    <span class="status-label">Mode:</span>
+                    <span class="status-badge" id="modeBadge">Mock Mode</span>
+                </div>
+                <div class="status-item">
+                    <span class="status-label">Documents:</span>
+                    <span id="docCount">0</span>
+                </div>
+                <div class="status-item">
+                    <span class="status-label">Chunks:</span>
+                    <span id="chunkCount">0</span>
+                </div>
+                <div class="status-item">
+                    <span class="status-label">Provider:</span>
+                    <span id="providerName">Local Mock</span>
+                </div>
+            </div>
+
+            <!-- Demo Notice -->
+            <div class="demo-notice" id="demoNotice" style="display: none;">
+                <span class="demo-notice-icon">📚</span>
+                <span class="demo-notice-text">Demo content available! Load sample exhibitor manuals to test the Knowledge Base.</span>
+                <button class="btn-primary btn-sm demo-notice-btn" onclick="loadDemoContent()">Load Demo</button>
+            </div>
+
+            <!-- Upload Section -->
+            <section class="section">
+                <div class="section-header">
+                    <h2 class="section-title">📤 Upload Documents</h2>
+                </div>
+                
+                <div class="upload-area" id="uploadArea" onclick="document.getElementById('fileInput').click()">
+                    <div class="upload-icon">📄</div>
+                    <div class="upload-text">Click or drag files to upload</div>
+                    <div class="upload-hint">Supports PDF, DOCX, TXT (Max 10MB)</div>
+                    <input type="file" id="fileInput" style="display: none;" accept=".pdf,.docx,.doc,.txt" onchange="handleFileSelect(this.files)">
+                </div>
+                
+                <form class="upload-form" id="uploadForm" enctype="multipart/form-data">
+                    <input type="text" id="docTitle" placeholder="Document title..." required>
+                    <select id="docType">
+                        <option value="exhibitor_manual">Exhibitor Manual</option>
+                        <option value="venue_rules">Venue Rules</option>
+                        <option value="fire_safety">Fire Safety</option>
+                        <option value="electrical">Electrical</option>
+                        <option value="hanging_signs">Hanging Signs</option>
+                        <option value="labor_rules">Labor Rules</option>
+                        <option value="booth_design">Booth Design</option>
+                        <option value="other">Other</option>
+                    </select>
+                    <input type="text" id="eventName" placeholder="Event (e.g., CES 2026)">
+                    <button type="submit" class="btn-primary">Upload</button>
+                </form>
+            </section>
+
+            <!-- Documents Section -->
+            <section class="section">
+                <div class="section-header">
+                    <h2 class="section-title">📚 Your Documents</h2>
+                    <span id="docCountBadge" style="color: var(--text-secondary); font-size: 0.85rem;">0 documents</span>
+                </div>
+                <div class="documents-grid" id="documentsGrid">
+                    <div class="empty-state">
+                        <div class="empty-state-icon">📂</div>
+                        <p>No documents uploaded yet. Upload your first document above.</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Ask Section -->
+            <section class="section">
+                <div class="section-header">
+                    <h2 class="section-title">❓ Ask Questions</h2>
+                </div>
+                <div class="ask-container">
+                    <div class="ask-main">
+                        <div class="question-input">
+                            <input type="text" id="questionInput" placeholder="Ask about booth rules, fire safety, electrical requirements..." onkeypress="if(event.key==='Enter') askQuestion()">
+                            <button class="btn-primary" onclick="askQuestion()" id="askBtn">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 015.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                                Ask
+                            </button>
+                        </div>
+                        
+                        <div class="answer-area" id="answerArea">
+                            <div class="answer-placeholder">
+                                <div style="font-size: 3rem; margin-bottom: 1rem;">💬</div>
+                                <p>Ask a question about exhibition rules and compliance...</p>
+                                <p style="margin-top: 0.5rem; font-size: 0.85rem;">Try: "What is the maximum booth height at CES?"</p>
+                            </div>
+                        </div>
+                        
+                        <div class="sources-section" id="sourcesSection" style="display: none;">
+                            <h4 style="margin-bottom: 0.75rem; color: var(--text);">📑 Source References</h4>
+                            <div id="sourcesList"></div>
+                        </div>
+                    </div>
+                    
+                    <div class="ask-history">
+                        <h4 style="margin-bottom: 1rem; color: var(--text);">📝 Recent Questions</h4>
+                        <div class="history-panel" id="historyPanel">
+                            <div class="empty-state" style="padding: 2rem;">
+                                <p>No questions asked yet.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script>
+        // State
+        let documents = [];
+        let currentAnswer = null;
+        
+        // Initialize
+        async function init() {
+            const userRes = await fetch('/api/auth/me');
+            if (!userRes.ok) { window.location.href = '/login'; return; }
+            const userData = await userRes.json();
+            if (userData.user) document.getElementById('userEmail').textContent = userData.user.email;
+            
+            await loadStatus();
+            await loadDocuments();
+            await loadHistory();
+        }
+        
+        // Load RAG status
+        async function loadStatus() {
+            try {
+                const res = await fetch('/api/rag/status');
+                const data = await res.json();
+                
+                document.getElementById('modeBadge').textContent = data.mode === 'mock' ? 'Mock Mode' : 'Live';
+                document.getElementById('modeBadge').className = 'status-badge ' + (data.mode === 'mock' ? 'badge-mock' : 'badge-live');
+                document.getElementById('docCount').textContent = data.document_count;
+                document.getElementById('chunkCount').textContent = data.chunk_count;
+                document.getElementById('providerName').textContent = data.provider_name || data.active_provider;
+                
+                // Show demo notice if no documents
+                if (data.document_count === 0 && data.demo_available) {
+                    document.getElementById('demoNotice').style.display = 'flex';
+                    document.getElementById('loadDemoBtn').style.display = 'flex';
+                }
+            } catch (e) { console.error(e); }
+        }
+        
+        // Load documents
+        async function loadDocuments() {
+            try {
+                const res = await fetch('/api/rag/documents');
+                documents = await res.json();
+                renderDocuments();
+            } catch (e) { console.error(e); }
+        }
+        
+        // Render documents
+        function renderDocuments() {
+            const grid = document.getElementById('documentsGrid');
+            document.getElementById('docCountBadge').textContent = documents.length + ' document' + (documents.length !== 1 ? 's' : '');
+            
+            if (documents.length === 0) {
+                grid.innerHTML = '<div class="empty-state"><div class="empty-state-icon">📂</div><p>No documents uploaded yet. Upload your first document above.</p></div>';
+                return;
+            }
+            
+            const typeLabels = {
+                'exhibitor_manual': 'Exhibitor Manual',
+                'venue_rules': 'Venue Rules',
+                'fire_safety': 'Fire Safety',
+                'electrical': 'Electrical',
+                'hanging_signs': 'Hanging Signs',
+                'labor_rules': 'Labor Rules',
+                'booth_design': 'Booth Design',
+                'other': 'Other'
+            };
+            
+            grid.innerHTML = documents.map(doc => `
+                <div class="doc-card">
+                    <div class="doc-header">
+                        <span class="doc-title">${escapeHtml(doc.title)}</span>
+                        <span class="doc-type">${typeLabels[doc.document_type] || doc.document_type || 'Other'}</span>
+                    </div>
+                    <div class="doc-meta">
+                        ${doc.event_name ? escapeHtml(doc.event_name) : ''} ${doc.year ? doc.year : ''}
+                    </div>
+                    <div class="doc-status ${doc.status === 'indexed' ? 'doc-status-indexed' : 'doc-status-processing'}">
+                        ${doc.status === 'indexed' ? '✓ Indexed' : '⏳ Processing'} • ${doc.chunk_count} chunks
+                    </div>
+                    <div class="doc-actions">
+                        <button class="btn-secondary btn-sm" onclick="deleteDocument(${doc.id})">Delete</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+        
+        // Show upload form
+        function showUploadForm() {
+            document.getElementById('uploadArea').style.display = 'none';
+            document.getElementById('uploadForm').classList.add('active');
+            document.getElementById('docTitle').focus();
+        }
+        
+        // Handle file selection
+        function handleFileSelect(files) {
+            if (files.length > 0) {
+                const file = files[0];
+                // Auto-fill title from filename
+                const title = file.name.replace(/\.[^/.]+$/, '').replace(/[_-]/g, ' ');
+                document.getElementById('docTitle').value = title;
+                showUploadForm();
+            }
+        }
+        
+        // Upload document
+        document.getElementById('uploadForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const fileInput = document.getElementById('fileInput');
+            if (!fileInput.files[0]) { alert('Please select a file'); return; }
+            
+            const formData = new FormData();
+            formData.append('file', fileInput.files[0]);
+            formData.append('title', document.getElementById('docTitle').value);
+            formData.append('document_type', document.getElementById('docType').value);
+            formData.append('event_name', document.getElementById('eventName').value);
+            
+            const btn = e.target.querySelector('button[type="submit"]');
+            btn.disabled = true;
+            btn.innerHTML = '<span class="loading-spinner" style="width:20px;height:20px;margin:0;"></span>';
+            
+            try {
+                const res = await fetch('/api/rag/documents/upload', { method: 'POST', body: formData });
+                if (res.ok) {
+                    await loadDocuments();
+                    await loadStatus();
+                    // Reset form
+                    document.getElementById('uploadForm').classList.remove('active');
+                    document.getElementById('uploadArea').style.display = 'block';
+                    fileInput.value = '';
+                    document.getElementById('docTitle').value = '';
+                } else {
+                    const err = await res.json();
+                    alert('Upload failed: ' + (err.detail || 'Unknown error'));
+                }
+            } catch (e) { alert('Upload failed: ' + e.message); }
+            finally { btn.disabled = false; btn.textContent = 'Upload'; }
+        });
+        
+        // Delete document
+        async function deleteDocument(id) {
+            if (!confirm('Delete this document?')) return;
+            try {
+                await fetch('/api/rag/documents/' + id, { method: 'DELETE' });
+                await loadDocuments();
+                await loadStatus();
+            } catch (e) { console.error(e); }
+        }
+        
+        // Load demo content
+        async function loadDemoContent() {
+            try {
+                const res = await fetch('/api/rag/load-demo', { method: 'POST' });
+                const data = await res.json();
+                if (data.success) {
+                    document.getElementById('demoNotice').style.display = 'none';
+                    await loadDocuments();
+                    await loadStatus();
+                }
+            } catch (e) { console.error(e); }
+        }
+        
+        // Ask question
+        async function askQuestion() {
+            const input = document.getElementById('questionInput');
+            const question = input.value.trim();
+            if (!question) return;
+            
+            const btn = document.getElementById('askBtn');
+            btn.disabled = true;
+            btn.innerHTML = '<span class="loading-spinner" style="width:20px;height:20px;margin:0;"></span>';
+            
+            document.getElementById('answerArea').innerHTML = '<div class="loading-spinner"></div><p style="text-align:center;margin-top:1rem;color:var(--text-secondary);">Searching knowledge base...</p>';
+            
+            try {
+                const res = await fetch('/api/rag/ask', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: 'question=' + encodeURIComponent(question)
+                });
+                
+                if (res.ok) {
+                    currentAnswer = await res.json();
+                    renderAnswer(currentAnswer);
+                    await loadHistory();
+                } else {
+                    throw new Error('Failed to get answer');
+                }
+            } catch (e) {
+                document.getElementById('answerArea').innerHTML = '<div class="answer-placeholder"><p>Error: ' + e.message + '</p></div>';
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 015.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg> Ask';
+            }
+        }
+        
+        // Render answer
+        function renderAnswer(data) {
+            const answerArea = document.getElementById('answerArea');
+            const sourcesSection = document.getElementById('sourcesSection');
+            const sourcesList = document.getElementById('sourcesList');
+            
+            answerArea.innerHTML = '<div class="answer-text">' + escapeHtml(data.answer) + '</div>';
+            
+            if (data.sources && data.sources.length > 0) {
+                sourcesSection.style.display = 'block';
+                sourcesList.innerHTML = data.sources.map(s => `
+                    <div class="source-item">
+                        <div class="source-header">
+                            <span class="source-title">${escapeHtml(s.document_title)}</span>
+                            <span class="source-badge">Chunk ${s.chunk_index + 1}</span>
+                        </div>
+                        <div class="source-excerpt">${escapeHtml(s.excerpt)}</div>
+                    </div>
+                `).join('');
+            } else {
+                sourcesSection.style.display = 'none';
+            }
+        }
+        
+        // Load history
+        async function loadHistory() {
+            try {
+                const res = await fetch('/api/rag/queries?limit=10');
+                const queries = await res.json();
+                renderHistory(queries);
+            } catch (e) { console.error(e); }
+        }
+        
+        // Render history
+        function renderHistory(queries) {
+            const panel = document.getElementById('historyPanel');
+            if (queries.length === 0) {
+                panel.innerHTML = '<div class="empty-state" style="padding: 2rem;"><p>No questions asked yet.</p></div>';
+                return;
+            }
+            
+            panel.innerHTML = queries.map(q => `
+                <div class="history-item" onclick="showHistoryAnswer(${q.id})">
+                    <div class="history-question">${escapeHtml(q.question)}</div>
+                    <div class="history-time">
+                        ${new Date(q.created_at).toLocaleDateString()} 
+                        <span class="history-provider">${q.provider}</span>
+                    </div>
+                </div>
+            `).join('');
+        }
+        
+        // Show history answer
+        async function showHistoryAnswer(id) {
+            try {
+                const res = await fetch('/api/rag/queries?limit=100');
+                const queries = await res.json();
+                const query = queries.find(q => q.id === id);
+                if (query) {
+                    document.getElementById('questionInput').value = query.question;
+                    renderAnswer(query);
+                }
+            } catch (e) { console.error(e); }
+        }
+        
+        // Escape HTML
+        function escapeHtml(text) {
+            if (!text) return '';
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+        
+        // Initialize on load
+        init();
+    </script>
+</body>
+</html>

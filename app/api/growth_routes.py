@@ -18,6 +18,16 @@ from app.services.growth_advisor import get_growth_advisor
 router = APIRouter(prefix="/growth", tags=["growth"])
 
 
+def require_sms_verified(request: Request) -> int:
+    """Require user to be authenticated and SMS verified. Returns user_id."""
+    user_id = request.session.get("user_id")
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    if not request.session.get("sms_verified"):
+        raise HTTPException(status_code=403, detail="Phone verification required")
+    return user_id
+
+
 # ==================== Pydantic Models ====================
 
 class KeywordCreate(BaseModel):
@@ -69,6 +79,7 @@ class CheckNowResponse(BaseModel):
     google_seo_count: int
     chatgpt_count: int
     deepseek_count: int
+    perplexity_count: int
     recommendations_count: int
     report_id: Optional[int]
 
@@ -83,6 +94,7 @@ class ReportResponse(BaseModel):
     total_clicks: int
     chatgpt_score: int
     deepseek_score: int
+    perplexity_score: int
     keywords_improved: int
     keywords_declined: int
     competitors_mentioned: int
@@ -113,7 +125,7 @@ async def list_keywords(
     db: Session = Depends(get_db)
 ):
     """Get all keywords for the current user."""
-    user_id = request.session.get("user_id")
+    user_id = require_sms_verified(request)
     if not user_id:
         raise HTTPException(status_code=401, detail="Not authenticated")
     
@@ -147,7 +159,7 @@ async def create_keyword(
     db: Session = Depends(get_db)
 ):
     """Create a new keyword to track."""
-    user_id = request.session.get("user_id")
+    user_id = require_sms_verified(request)
     if not user_id:
         raise HTTPException(status_code=401, detail="Not authenticated")
     
@@ -186,7 +198,7 @@ async def update_keyword(
     db: Session = Depends(get_db)
 ):
     """Update a keyword."""
-    user_id = request.session.get("user_id")
+    user_id = require_sms_verified(request)
     if not user_id:
         raise HTTPException(status_code=401, detail="Not authenticated")
     
@@ -236,7 +248,7 @@ async def delete_keyword(
     db: Session = Depends(get_db)
 ):
     """Delete a keyword."""
-    user_id = request.session.get("user_id")
+    user_id = require_sms_verified(request)
     if not user_id:
         raise HTTPException(status_code=401, detail="Not authenticated")
     
@@ -262,7 +274,7 @@ async def list_competitors(
     db: Session = Depends(get_db)
 ):
     """Get all competitors for the current user."""
-    user_id = request.session.get("user_id")
+    user_id = require_sms_verified(request)
     if not user_id:
         raise HTTPException(status_code=401, detail="Not authenticated")
     
@@ -292,7 +304,7 @@ async def create_competitor(
     db: Session = Depends(get_db)
 ):
     """Add a new competitor to track."""
-    user_id = request.session.get("user_id")
+    user_id = require_sms_verified(request)
     if not user_id:
         raise HTTPException(status_code=401, detail="Not authenticated")
     
@@ -325,7 +337,7 @@ async def delete_competitor(
     db: Session = Depends(get_db)
 ):
     """Delete (deactivate) a competitor."""
-    user_id = request.session.get("user_id")
+    user_id = require_sms_verified(request)
     if not user_id:
         raise HTTPException(status_code=401, detail="Not authenticated")
     
@@ -351,7 +363,7 @@ async def run_check_now(
     db: Session = Depends(get_db)
 ):
     """Run a full growth check now."""
-    user_id = request.session.get("user_id")
+    user_id = require_sms_verified(request)
     if not user_id:
         raise HTTPException(status_code=401, detail="Not authenticated")
     
@@ -363,6 +375,7 @@ async def run_check_now(
         google_seo_count=len(results.get("google_seo", [])),
         chatgpt_count=len(results.get("chatgpt", [])),
         deepseek_count=len(results.get("deepseek", [])),
+        perplexity_count=len(results.get("perplexity", [])),
         recommendations_count=len(results.get("recommendations", [])),
         report_id=results.get("report", {}).get("id") if results.get("report") else None
     )
@@ -374,7 +387,7 @@ async def get_latest_report(
     db: Session = Depends(get_db)
 ):
     """Get the latest daily growth report."""
-    user_id = request.session.get("user_id")
+    user_id = require_sms_verified(request)
     if not user_id:
         raise HTTPException(status_code=401, detail="Not authenticated")
     
@@ -395,7 +408,7 @@ async def get_recommendations(
     db: Session = Depends(get_db)
 ):
     """Get growth recommendations."""
-    user_id = request.session.get("user_id")
+    user_id = require_sms_verified(request)
     if not user_id:
         raise HTTPException(status_code=401, detail="Not authenticated")
     
@@ -413,7 +426,7 @@ async def update_recommendation_status(
     db: Session = Depends(get_db)
 ):
     """Update the status of a recommendation."""
-    user_id = request.session.get("user_id")
+    user_id = require_sms_verified(request)
     if not user_id:
         raise HTTPException(status_code=401, detail="Not authenticated")
     
@@ -436,7 +449,7 @@ async def get_seo_metrics(
     db: Session = Depends(get_db)
 ):
     """Get SEO metrics for keywords."""
-    user_id = request.session.get("user_id")
+    user_id = require_sms_verified(request)
     if not user_id:
         raise HTTPException(status_code=401, detail="Not authenticated")
     
@@ -453,7 +466,7 @@ async def get_ai_visibility_metrics(
     db: Session = Depends(get_db)
 ):
     """Get AI visibility metrics."""
-    user_id = request.session.get("user_id")
+    user_id = require_sms_verified(request)
     if not user_id:
         raise HTTPException(status_code=401, detail="Not authenticated")
     
@@ -461,6 +474,57 @@ async def get_ai_visibility_metrics(
     metrics = await advisor.get_ai_visibility_metrics(db, user_id, keyword_id)
     
     return metrics
+
+
+@router.get("/trends/visibility")
+async def get_visibility_trends(
+    request: Request,
+    days: int = Query(default=30, le=90),
+    db: Session = Depends(get_db)
+):
+    """Get AI visibility trends for charting."""
+    user_id = require_sms_verified(request)
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    
+    advisor = get_growth_advisor()
+    trends = await advisor.get_visibility_trends(db, user_id, days)
+    
+    return trends
+
+
+@router.get("/trends/seo")
+async def get_seo_trends(
+    request: Request,
+    days: int = Query(default=30, le=90),
+    db: Session = Depends(get_db)
+):
+    """Get SEO trends for charting."""
+    user_id = require_sms_verified(request)
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    
+    advisor = get_growth_advisor()
+    trends = await advisor.get_seo_trends(db, user_id, days)
+    
+    return trends
+
+
+@router.get("/trends/competitors")
+async def get_competitor_trends(
+    request: Request,
+    days: int = Query(default=30, le=90),
+    db: Session = Depends(get_db)
+):
+    """Get competitor mention trends."""
+    user_id = require_sms_verified(request)
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    
+    advisor = get_growth_advisor()
+    trends = await advisor.get_competitor_trends(db, user_id, days)
+    
+    return trends
 
 
 @router.get("/status")
@@ -472,14 +536,16 @@ async def get_growth_status(
     from app.services.google_seo_monitor import get_google_seo_monitor
     from app.services.chatgpt_visibility_monitor import get_chatgpt_monitor
     from app.services.deepseek_visibility_monitor import get_deepseek_monitor
+    from app.services.perplexity_visibility_monitor import get_perplexity_monitor
     
-    user_id = request.session.get("user_id")
+    user_id = require_sms_verified(request)
     if not user_id:
         raise HTTPException(status_code=401, detail="Not authenticated")
     
     google_seo = get_google_seo_monitor()
     chatgpt = get_chatgpt_monitor()
     deepseek = get_deepseek_monitor()
+    perplexity = get_perplexity_monitor()
     
     # Count user's data
     keyword_count = db.query(SEOKeyword).filter(SEOKeyword.user_id == user_id).count()
@@ -500,6 +566,10 @@ async def get_growth_status(
         "deepseek": {
             "mock_mode": deepseek.is_mock_mode(),
             "configured": bool(deepseek.api_key if hasattr(deepseek, 'api_key') else False)
+        },
+        "perplexity": {
+            "mock_mode": perplexity.is_mock_mode(),
+            "configured": bool(perplexity.api_key if hasattr(perplexity, 'api_key') else False)
         },
         "user_data": {
             "keywords_tracked": keyword_count,
