@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Marketing Reports - ET EXPO</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #6366f1;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --gray-50: #f9fafb;
+            --gray-100: #f3f4f6;
+            --gray-200: #e5e7eb;
+            --gray-300: #d1d5db;
+            --gray-500: #6b7280;
+            --gray-700: #374151;
+            --gray-900: #111827;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Inter', sans-serif; background: var(--gray-50); color: var(--gray-900); }
+        
+        .nav { background: white; border-bottom: 1px solid var(--gray-200); padding: 1rem 2rem; display: flex; justify-content: space-between; align-items: center; }
+        .nav-brand { font-weight: 700; font-size: 1.25rem; color: var(--primary); }
+        .nav-links { display: flex; gap: 1.5rem; }
+        .nav-links a { color: var(--gray-500); text-decoration: none; font-weight: 500; }
+        .nav-links a:hover, .nav-links a.active { color: var(--primary); }
+        
+        .container { max-width: 1400px; margin: 0 auto; padding: 2rem; }
+        
+        .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; }
+        .page-title { font-size: 1.5rem; font-weight: 700; }
+        .page-subtitle { color: var(--gray-500); margin-top: 0.25rem; }
+        
+        .safety-banner { background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%); border: 1px solid var(--primary); border-radius: 12px; padding: 1rem 1.5rem; margin-bottom: 2rem; display: flex; align-items: center; gap: 1rem; }
+        .safety-icon { font-size: 1.5rem; }
+        .safety-title { font-weight: 600; color: #1e40af; }
+        .safety-desc { color: #1e3a8a; font-size: 0.875rem; }
+        
+        .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 2rem; }
+        .stat-card { background: white; border-radius: 12px; border: 1px solid var(--gray-200); padding: 1.5rem; text-align: center; }
+        .stat-value { font-size: 2.5rem; font-weight: 700; color: var(--gray-900); }
+        .stat-label { color: var(--gray-500); font-size: 0.875rem; margin-top: 0.5rem; }
+        .stat-icon { font-size: 2rem; margin-bottom: 0.5rem; }
+        
+        .card { background: white; border-radius: 12px; border: 1px solid var(--gray-200); overflow: hidden; margin-bottom: 2rem; }
+        .card-header { padding: 1rem 1.5rem; border-bottom: 1px solid var(--gray-200); font-weight: 600; }
+        .card-body { padding: 1.5rem; }
+        
+        .chart-placeholder { background: var(--gray-50); border-radius: 8px; padding: 2rem; text-align: center; color: var(--gray-500); }
+        
+        .logs-table { width: 100%; border-collapse: collapse; }
+        .logs-table th, .logs-table td { padding: 0.75rem 1rem; text-align: left; border-bottom: 1px solid var(--gray-100); }
+        .logs-table th { background: var(--gray-50); font-weight: 600; font-size: 0.75rem; text-transform: uppercase; color: var(--gray-500); }
+        .logs-table tr:hover { background: var(--gray-50); }
+        
+        .status-badge { padding: 0.25rem 0.75rem; border-radius: 9999px; font-size: 0.75rem; font-weight: 500; }
+        .status-success { background: #d1fae5; color: #065f46; }
+        .status-failed { background: #fee2e2; color: #991b1b; }
+        .status-skipped { background: #fef3c7; color: #92400e; }
+        
+        .mock-badge { background: #dbeafe; color: #1e40af; padding: 0.25rem 0.5rem; border-radius: 4px; font-size: 0.75rem; font-weight: 500; }
+        
+        .filter-row { display: flex; gap: 1rem; margin-bottom: 1rem; }
+        select, input { padding: 0.5rem 1rem; border: 1px solid var(--gray-300); border-radius: 8px; font-size: 0.875rem; }
+        
+        .empty-state { text-align: center; padding: 3rem; color: var(--gray-500); }
+    </style>
+</head>
+<body>
+    <nav class="nav">
+        <div class="nav-brand">📢 ET EXPO Marketing</div>
+        <div class="nav-links">
+            <a href="/">Dashboard</a>
+            <a href="/history">History</a>
+            <a href="/settings">Settings</a>
+            <a href="/growth">Growth Advisor</a>
+            <a href="/marketing/drafts">Marketing</a>
+            <a href="/api/auth/logout">Logout</a>
+        </div>
+    </nav>
+    
+    <div class="container">
+        <div class="safety-banner">
+            <span class="safety-icon">📊</span>
+            <div class="safety-text">
+                <div class="safety-title">Marketing Reports & Analytics</div>
+                <div class="safety-desc">Track your marketing performance. Note: All publishing is in mock mode - no real ads or costs.</div>
+            </div>
+        </div>
+        
+        <div class="page-header">
+            <div>
+                <h1 class="page-title">Marketing Reports</h1>
+                <p class="page-subtitle">Performance overview and publish logs</p>
+            </div>
+        </div>
+        
+        <div class="stats">
+            <div class="stat-card">
+                <div class="stat-icon">📝</div>
+                <div class="stat-value" id="stat-total">0</div>
+                <div class="stat-label">Total Drafts</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon">🚀</div>
+                <div class="stat-value" id="stat-published">0</div>
+                <div class="stat-label">Published (Mock)</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon">💰</div>
+                <div class="stat-value">$0</div>
+                <div class="stat-label">Total Cost (Mock)</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon">👁️</div>
+                <div class="stat-value">0</div>
+                <div class="stat-label">Impressions (Mock)</div>
+            </div>
+        </div>
+        
+        <div class="card">
+            <div class="card-header">📈 Draft Status Distribution</div>
+            <div class="card-body">
+                <div class="chart-placeholder">
+                    <p>Status breakdown visualization</p>
+                    <div id="status-chart" style="display: flex; gap: 1rem; justify-content: center; margin-top: 1rem;"></div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="card">
+            <div class="card-header">
+                📋 Publish Logs (Audit Trail)
+                <span class="mock-badge">DRY-RUN MODE</span>
+            </div>
+            <div class="card-body">
+                <div class="filter-row">
+                    <select id="filter-action" onchange="loadLogs()">
+                        <option value="">All Actions</option>
+                        <option value="dry_run">Dry Run</option>
+                        <option value="publish">Publish</option>
+                        <option value="approve">Approve</option>
+                        <option value="reject">Reject</option>
+                        <option value="submit_for_approval">Submit</option>
+                    </select>
+                    <select id="filter-platform" onchange="loadLogs()">
+                        <option value="">All Platforms</option>
+                        <option value="google_ads">Google Ads</option>
+                        <option value="linkedin">LinkedIn</option>
+                        <option value="facebook">Facebook</option>
+                        <option value="google_business">Google Business</option>
+                        <option value="email">Email</option>
+                        <option value="seo_article">SEO Article</option>
+                    </select>
+                </div>
+                <table class="logs-table">
+                    <thead>
+                        <tr>
+                            <th>Time</th>
+                            <th>Draft ID</th>
+                            <th>Action</th>
+                            <th>Platform</th>
+                            <th>Status</th>
+                            <th>Mode</th>
+                            <th>Cost</th>
+                        </tr>
+                    </thead>
+                    <tbody id="logs-tbody">
+                        <tr>
+                            <td colspan="7" class="empty-state">Loading logs...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        let drafts = [];
+        
+        async function init() {
+            try {
+                const res = await fetch('/api/auth/me');
+                const data = await res.json();
+                if (!data.user) {
+                    window.location.href = '/login';
+                    return;
+                }
+                await Promise.all([loadDrafts(), loadLogs()]);
+            } catch (e) {
+                window.location.href = '/login';
+            }
+        }
+        
+        async function loadDrafts() {
+            try {
+                const res = await fetch('/api/marketing/drafts?limit=100');
+                const data = await res.json();
+                drafts = data.drafts || [];
+                
+                // Update stats
+                document.getElementById('stat-total').textContent = drafts.length;
+                document.getElementById('stat-published').textContent = drafts.filter(d => d.status === 'published').length;
+                
+                renderStatusChart();
+            } catch (e) {
+                console.error('Failed to load drafts');
+            }
+        }
+        
+        function renderStatusChart() {
+            const statuses = {};
+            drafts.forEach(d => {
+                statuses[d.status] = (statuses[d.status] || 0) + 1;
+            });
+            
+            const colors = {
+                'draft': '#6b7280',
+                'pending_review': '#f59e0b',
+                'approved': '#10b981',
+                'rejected': '#ef4444',
+                'scheduled': '#3b82f6',
+                'published': '#10b981',
+                'failed': '#ef4444'
+            };
+            
+            const chart = document.getElementById('status-chart');
+            chart.innerHTML = Object.entries(statuses).map(([status, count]) => `
+                <div style="text-align: center;">
+                    <div style="width: 60px; height: 60px; border-radius: 50%; background: ${colors[status] || '#6b7280'}; display: flex; align-items: center; justify-content: center; color: white; font-weight: 700; margin: 0 auto 0.5rem;">${count}</div>
+                    <div style="font-size: 0.75rem; color: var(--gray-500);">${status}</div>
+                </div>
+            `).join('');
+        }
+        
+        async function loadLogs() {
+            const action = document.getElementById('filter-action').value;
+            const platform = document.getElementById('filter-platform').value;
+            
+            let url = '/api/marketing/logs?limit=50';
+            if (action) url += `&action=${action}`;
+            
+            try {
+                const res = await fetch(url);
+                const data = await res.json();
+                
+                let logs = data.logs || [];
+                if (platform) {
+                    logs = logs.filter(l => l.platform === platform);
+                }
+                
+                renderLogs(logs);
+            } catch (e) {
+                console.error('Failed to load logs');
+            }
+        }
+        
+        function renderLogs(logs) {
+            const tbody = document.getElementById('logs-tbody');
+            
+            if (logs.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="7" class="empty-state">No logs found</td></tr>';
+                return;
+            }
+            
+            tbody.innerHTML = logs.map(log => `
+                <tr>
+                    <td>${new Date(log.created_at).toLocaleString()}</td>
+                    <td>${log.draft_id}</td>
+                    <td><strong>${log.action}</strong></td>
+                    <td>${log.platform || '—'}</td>
+                    <td><span class="status-badge status-${log.status}">${log.status}</span></td>
+                    <td><span class="mock-badge">${log.mock_mode ? 'DRY-RUN' : 'REAL'}</span></td>
+                    <td>$${(log.cost_cents / 100).toFixed(2)}</td>
+                </tr>
+            `).join('');
+        }
+        
+        init();
+    </script>
+</body>
+</html>

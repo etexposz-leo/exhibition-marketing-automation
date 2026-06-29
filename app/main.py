@@ -8,6 +8,7 @@ import os
 from app.api.routes import router as api_router
 from app.api.auth_routes import router as auth_router
 from app.api.growth_routes import router as growth_router
+from app.api.marketing_routes import router as marketing_router
 from app.core.database import engine, Base, SessionLocal
 from app.core.config import enforce_production_config, print_config_status
 from app.services.scheduler import start_scheduler, stop_scheduler
@@ -40,8 +41,8 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(
-    title="Exhibition Marketing Automation",
-    version="2.0.0",
+    title="ET EXPO Marketing Automation Center",
+    version="3.0.0",
     lifespan=lifespan
 )
 
@@ -66,6 +67,7 @@ app.mount("/static", StaticFiles(directory=str(BASE_DIR / "static")), name="stat
 app.include_router(api_router, prefix="/api")
 app.include_router(auth_router, prefix="/api")
 app.include_router(growth_router, prefix="/api")
+app.include_router(marketing_router, prefix="/api")
 
 # Serve main page
 @app.get("/")
@@ -118,6 +120,38 @@ async def growth_page(request: Request):
     if not request.session.get("user_id"):
         return RedirectResponse(url="/login")
     return FileResponse(str(BASE_DIR / "templates" / "growth.html"))
+
+
+@app.get("/marketing/drafts")
+async def marketing_drafts_page(request: Request):
+    """Marketing drafts page - requires authentication."""
+    if not request.session.get("user_id"):
+        return RedirectResponse(url="/login")
+    return FileResponse(str(BASE_DIR / "templates" / "marketing_drafts.html"))
+
+
+@app.get("/marketing/approval")
+async def marketing_approval_page(request: Request):
+    """Marketing approval queue page - requires authentication."""
+    if not request.session.get("user_id"):
+        return RedirectResponse(url="/login")
+    return FileResponse(str(BASE_DIR / "templates" / "marketing_approval.html"))
+
+
+@app.get("/marketing/calendar")
+async def marketing_calendar_page(request: Request):
+    """Marketing calendar page - requires authentication."""
+    if not request.session.get("user_id"):
+        return RedirectResponse(url="/login")
+    return FileResponse(str(BASE_DIR / "templates" / "marketing_calendar.html"))
+
+
+@app.get("/marketing/reports")
+async def marketing_reports_page(request: Request):
+    """Marketing reports page - requires authentication."""
+    if not request.session.get("user_id"):
+        return RedirectResponse(url="/login")
+    return FileResponse(str(BASE_DIR / "templates" / "marketing_reports.html"))
 
 
 if __name__ == "__main__":

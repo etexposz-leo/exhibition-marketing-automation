@@ -257,3 +257,146 @@ class DailyGrowthReport(Base):
     summary = Column(Text, nullable=True)
     action_plan = Column(Text, nullable=True)  # JSON array of next steps
     created_at = Column(DateTime, default=datetime.utcnow)
+
+
+# ==================== Marketing Ad Draft Models ====================
+
+
+class AdDraftStatus:
+    """Ad draft status constants."""
+    DRAFT = "draft"
+    PENDING_REVIEW = "pending_review"
+    APPROVED = "approved"
+    REJECTED = "rejected"
+    SCHEDULED = "scheduled"
+    PUBLISHED = "published"
+    FAILED = "failed"
+
+
+class AdDraft(Base):
+    """Ad campaign drafts for all platforms."""
+    __tablename__ = "ad_drafts"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, nullable=False, index=True)
+    
+    # Platform and type
+    platform = Column(String(50), nullable=False)  # google_ads, linkedin, facebook, google_business, email, seo_article
+    campaign_type = Column(String(50), nullable=False)  # search_ad, display_ad, sponsored_post, post, article, newsletter
+    
+    # Content
+    title = Column(String(500), nullable=True)
+    body = Column(Text, nullable=True)
+    cta = Column(String(200), nullable=True)  # Call to action
+    image_url = Column(String(500), nullable=True)
+    
+    # Targeting
+    target_keywords = Column(Text, nullable=True)  # JSON array
+    target_audience = Column(Text, nullable=True)  # JSON object
+    target_locations = Column(Text, nullable=True)  # JSON array
+    target_age_range = Column(String(50), nullable=True)  # e.g., "25-54"
+    
+    # Campaign details
+    landing_page = Column(String(500), nullable=True)
+    suggested_budget = Column(Float, default=0.0)  # In cents
+    daily_budget = Column(Float, default=0.0)
+    schedule_time = Column(DateTime, nullable=True)
+    start_date = Column(Date, nullable=True)
+    end_date = Column(Date, nullable=True)
+    
+    # Status workflow
+    status = Column(String(30), default=AdDraftStatus.DRAFT)
+    
+    # Approval fields
+    created_by = Column(Integer, nullable=False)
+    approved_by = Column(Integer, nullable=True)
+    approved_at = Column(DateTime, nullable=True)
+    rejected_by = Column(Integer, nullable=True)
+    rejected_at = Column(DateTime, nullable=True)
+    rejection_reason = Column(Text, nullable=True)
+    
+    # Publication results
+    published_at = Column(DateTime, nullable=True)
+    platform_post_id = Column(String(200), nullable=True)  # ID from platform after publish
+    error_message = Column(Text, nullable=True)
+    
+    # Safety flags
+    safety_check_passed = Column(Boolean, default=False)
+    safety_warnings = Column(Text, nullable=True)  # JSON array of warnings
+    leo_approved = Column(Boolean, default=False)
+    has_budget_cap = Column(Boolean, default=False)
+    has_target_platform = Column(Boolean, default=False)
+    has_schedule = Column(Boolean, default=False)
+    passed_content_check = Column(Boolean, default=False)
+    
+    # SEO specific
+    seo_keywords = Column(Text, nullable=True)  # JSON array
+    seo_meta_description = Column(String(300), nullable=True)
+    seo_reading_time = Column(Integer, nullable=True)  # minutes
+    
+    # Email specific
+    email_subject = Column(String(300), nullable=True)
+    email_recipients = Column(Text, nullable=True)  # JSON array
+    email_template_id = Column(Integer, nullable=True)
+    
+    # Versioning
+    version = Column(Integer, default=1)
+    parent_draft_id = Column(Integer, nullable=True)  # For A/B variants
+    
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class ApprovalQueue(Base):
+    """Approval queue for ad drafts."""
+    __tablename__ = "approval_queue"
+
+    id = Column(Integer, primary_key=True, index=True)
+    draft_id = Column(Integer, nullable=False, index=True)
+    user_id = Column(Integer, nullable=False, index=True)  # Who requested approval
+    
+    # Status
+    status = Column(String(30), default="pending")  # pending, approved, rejected
+    priority = Column(String(20), default="normal")  # low, normal, high, urgent
+    
+    # Approver info
+    reviewed_by = Column(Integer, nullable=True)
+    reviewed_at = Column(DateTime, nullable=True)
+    review_notes = Column(Text, nullable=True)
+    
+    # Safety check results
+    safety_checks_passed = Column(Boolean, default=False)
+    safety_issues = Column(Text, nullable=True)  # JSON array of issues
+    
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class PublishLog(Base):
+    """Log of all publish attempts (for audit trail)."""
+    __tablename__ = "publish_logs"
+
+    id = Column(Integer, primary_key=True, index=True)
+    draft_id = Column(Integer, nullable=False, index=True)
+    user_id = Column(Integer, nullable=False, index=True)
+    
+    # Action
+    action = Column(String(50), nullable=False)  # safety_check, dry_run, publish, approve, reject
+    status = Column(String(30), nullable=False)  # success, failed, skipped
+    
+    # Details
+    platform = Column(String(50), nullable=True)
+    mock_mode = Column(Boolean, default=True)  # True = did NOT call real API
+    request_data = Column(Text, nullable=True)  # JSON of what was sent
+    response_data = Column(Text, nullable=True)  # JSON of response (mock or real)
+    error_message = Column(Text, nullable=True)
+    
+    # Cost tracking (always 0 in mock mode)
+    cost_cents = Column(Integer, default=0)
+    impressions = Column(Integer, default=0)
+    clicks = Column(Integer, default=0)
+    
+    ip_address = Column(String(50), nullable=True)
+    user_agent = Column(String(500), nullable=True)
+    
+    created_at = Column(DateTime, default=datetime.utcnow)

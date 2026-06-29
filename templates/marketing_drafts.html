@@ -1,0 +1,686 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Marketing Drafts - ET EXPO</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/css/styles.css">
+    <style>
+        :root {
+            --primary: #6366f1;
+            --primary-dark: #4f46e5;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --gray-50: #f9fafb;
+            --gray-100: #f3f4f6;
+            --gray-200: #e5e7eb;
+            --gray-300: #d1d5db;
+            --gray-500: #6b7280;
+            --gray-700: #374151;
+            --gray-900: #111827;
+        }
+        
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Inter', sans-serif; background: var(--gray-50); color: var(--gray-900); }
+        
+        .nav { background: white; border-bottom: 1px solid var(--gray-200); padding: 1rem 2rem; display: flex; justify-content: space-between; align-items: center; }
+        .nav-brand { font-weight: 700; font-size: 1.25rem; color: var(--primary); display: flex; align-items: center; gap: 0.5rem; }
+        .nav-links { display: flex; gap: 1.5rem; align-items: center; }
+        .nav-links a { color: var(--gray-500); text-decoration: none; font-weight: 500; transition: color 0.2s; }
+        .nav-links a:hover, .nav-links a.active { color: var(--primary); }
+        .nav-links .badge { background: var(--primary); color: white; padding: 0.25rem 0.5rem; border-radius: 9999px; font-size: 0.75rem; }
+        
+        .container { max-width: 1400px; margin: 0 auto; padding: 2rem; }
+        
+        .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; }
+        .page-title { font-size: 1.5rem; font-weight: 700; }
+        .page-subtitle { color: var(--gray-500); margin-top: 0.25rem; }
+        
+        .safety-banner { background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%); border: 1px solid #f59e0b; border-radius: 12px; padding: 1rem 1.5rem; margin-bottom: 2rem; display: flex; align-items: center; gap: 1rem; }
+        .safety-icon { font-size: 1.5rem; }
+        .safety-text { flex: 1; }
+        .safety-title { font-weight: 600; color: #92400e; }
+        .safety-desc { color: #a16207; font-size: 0.875rem; }
+        
+        .filters { display: flex; gap: 1rem; margin-bottom: 1.5rem; flex-wrap: wrap; }
+        .filter-group { display: flex; align-items: center; gap: 0.5rem; }
+        .filter-label { font-weight: 500; color: var(--gray-500); font-size: 0.875rem; }
+        
+        select, input { padding: 0.5rem 1rem; border: 1px solid var(--gray-300); border-radius: 8px; font-size: 0.875rem; outline: none; }
+        select:focus, input:focus { border-color: var(--primary); }
+        
+        .btn { padding: 0.5rem 1rem; border-radius: 8px; font-weight: 500; font-size: 0.875rem; cursor: pointer; transition: all 0.2s; border: none; display: inline-flex; align-items: center; gap: 0.5rem; }
+        .btn-primary { background: var(--primary); color: white; }
+        .btn-primary:hover { background: var(--primary-dark); }
+        .btn-secondary { background: white; color: var(--gray-700); border: 1px solid var(--gray-300); }
+        .btn-secondary:hover { background: var(--gray-50); }
+        .btn-success { background: var(--success); color: white; }
+        .btn-success:hover { background: #059669; }
+        .btn-danger { background: var(--danger); color: white; }
+        .btn-danger:hover { background: #dc2626; }
+        .btn-warning { background: var(--warning); color: white; }
+        .btn-warning:hover { background: #d97706; }
+        .btn-sm { padding: 0.375rem 0.75rem; font-size: 0.75rem; }
+        
+        .card { background: white; border-radius: 12px; border: 1px solid var(--gray-200); overflow: hidden; }
+        .card-header { padding: 1rem 1.5rem; border-bottom: 1px solid var(--gray-200); font-weight: 600; display: flex; justify-content: space-between; align-items: center; }
+        .card-body { padding: 1.5rem; }
+        
+        .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 2rem; }
+        .stat-card { background: white; border-radius: 12px; border: 1px solid var(--gray-200); padding: 1.25rem; }
+        .stat-value { font-size: 2rem; font-weight: 700; color: var(--gray-900); }
+        .stat-label { color: var(--gray-500); font-size: 0.875rem; margin-top: 0.25rem; }
+        .stat-icon { font-size: 1.5rem; margin-bottom: 0.5rem; }
+        
+        .drafts-table { width: 100%; border-collapse: collapse; }
+        .drafts-table th, .drafts-table td { padding: 1rem 1.5rem; text-align: left; border-bottom: 1px solid var(--gray-100); }
+        .drafts-table th { background: var(--gray-50); font-weight: 600; color: var(--gray-500); font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; }
+        .drafts-table tr:hover { background: var(--gray-50); }
+        
+        .status-badge { display: inline-flex; align-items: center; gap: 0.375rem; padding: 0.25rem 0.75rem; border-radius: 9999px; font-size: 0.75rem; font-weight: 500; }
+        .status-draft { background: var(--gray-100); color: var(--gray-700); }
+        .status-pending { background: #fef3c7; color: #92400e; }
+        .status-approved { background: #d1fae5; color: #065f46; }
+        .status-rejected { background: #fee2e2; color: #991b1b; }
+        .status-scheduled { background: #dbeafe; color: #1e40af; }
+        .status-published { background: #d1fae5; color: #065f46; }
+        .status-failed { background: #fee2e2; color: #991b1b; }
+        
+        .platform-badge { display: inline-flex; align-items: center; gap: 0.375rem; padding: 0.25rem 0.5rem; border-radius: 6px; font-size: 0.75rem; font-weight: 500; background: var(--gray-100); color: var(--gray-700); }
+        
+        .action-buttons { display: flex; gap: 0.5rem; }
+        
+        .modal { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); align-items: center; justify-content: center; z-index: 1000; }
+        .modal.show { display: flex; }
+        .modal-content { background: white; border-radius: 16px; max-width: 600px; width: 90%; max-height: 90vh; overflow-y: auto; }
+        .modal-header { padding: 1.5rem; border-bottom: 1px solid var(--gray-200); display: flex; justify-content: space-between; align-items: center; }
+        .modal-title { font-weight: 600; font-size: 1.125rem; }
+        .modal-close { background: none; border: none; font-size: 1.5rem; cursor: pointer; color: var(--gray-500); }
+        .modal-body { padding: 1.5rem; }
+        .modal-footer { padding: 1.5rem; border-top: 1px solid var(--gray-200); display: flex; justify-content: flex-end; gap: 0.75rem; }
+        
+        .form-group { margin-bottom: 1rem; }
+        .form-label { display: block; font-weight: 500; margin-bottom: 0.5rem; color: var(--gray-700); }
+        .form-input { width: 100%; padding: 0.75rem 1rem; border: 1px solid var(--gray-300); border-radius: 8px; font-size: 0.875rem; }
+        .form-input:focus { border-color: var(--primary); outline: none; }
+        textarea.form-input { resize: vertical; min-height: 100px; }
+        .form-hint { font-size: 0.75rem; color: var(--gray-500); margin-top: 0.25rem; }
+        
+        .toast { position: fixed; bottom: 2rem; right: 2rem; background: var(--gray-900); color: white; padding: 1rem 1.5rem; border-radius: 12px; display: none; z-index: 1001; }
+        .toast.show { display: block; }
+        .toast.success { background: var(--success); }
+        .toast.error { background: var(--danger); }
+        
+        .empty-state { text-align: center; padding: 4rem 2rem; color: var(--gray-500); }
+        .empty-icon { font-size: 3rem; margin-bottom: 1rem; }
+        .empty-title { font-size: 1.25rem; font-weight: 600; color: var(--gray-700); margin-bottom: 0.5rem; }
+        
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .loading { animation: spin 1s linear infinite; }
+    </style>
+</head>
+<body>
+    <nav class="nav">
+        <div class="nav-brand">📢 ET EXPO Marketing</div>
+        <div class="nav-links">
+            <a href="/">Dashboard</a>
+            <a href="/history">History</a>
+            <a href="/settings">Settings</a>
+            <a href="/growth">Growth Advisor</a>
+            <a href="/marketing/drafts" class="active">Marketing</a>
+            <a href="/api/auth/logout">Logout</a>
+        </div>
+    </nav>
+    
+    <div class="container">
+        <div class="safety-banner">
+            <span class="safety-icon">🛡️</span>
+            <div class="safety-text">
+                <div class="safety-title">Safety Mode Active</div>
+                <div class="safety-desc">All drafts require approval. Real publishing is disabled. Only mock/dry-run mode available.</div>
+            </div>
+            <button class="btn btn-secondary btn-sm" onclick="location.href='/marketing/approval'">View Approval Queue</button>
+        </div>
+        
+        <div class="page-header">
+            <div>
+                <h1 class="page-title">📝 Marketing Drafts</h1>
+                <p class="page-subtitle">Create and manage ad campaign drafts across all platforms</p>
+            </div>
+            <button class="btn btn-primary" onclick="openCreateModal()">
+                <span>+</span> New Draft
+            </button>
+        </div>
+        
+        <div class="stats">
+            <div class="stat-card">
+                <div class="stat-icon">📝</div>
+                <div class="stat-value" id="stat-total">0</div>
+                <div class="stat-label">Total Drafts</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon">⏳</div>
+                <div class="stat-value" id="stat-pending">0</div>
+                <div class="stat-label">Pending Review</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon">✅</div>
+                <div class="stat-value" id="stat-approved">0</div>
+                <div class="stat-label">Approved</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon">🚀</div>
+                <div class="stat-value" id="stat-published">0</div>
+                <div class="stat-label">Published (Mock)</div>
+            </div>
+        </div>
+        
+        <div class="card">
+            <div class="card-header">
+                <span>All Drafts</span>
+                <div style="display: flex; gap: 0.5rem;">
+                    <select id="filter-platform" onchange="loadDrafts()">
+                        <option value="">All Platforms</option>
+                        <option value="google_ads">Google Ads</option>
+                        <option value="linkedin">LinkedIn</option>
+                        <option value="facebook">Facebook</option>
+                        <option value="google_business">Google Business</option>
+                        <option value="email">Email</option>
+                        <option value="seo_article">SEO Article</option>
+                    </select>
+                    <select id="filter-status" onchange="loadDrafts()">
+                        <option value="">All Status</option>
+                        <option value="draft">Draft</option>
+                        <option value="pending_review">Pending Review</option>
+                        <option value="approved">Approved</option>
+                        <option value="rejected">Rejected</option>
+                        <option value="scheduled">Scheduled</option>
+                        <option value="published">Published</option>
+                    </select>
+                </div>
+            </div>
+            <div class="card-body" style="padding: 0;">
+                <table class="drafts-table">
+                    <thead>
+                        <tr>
+                            <th>Title</th>
+                            <th>Platform</th>
+                            <th>Type</th>
+                            <th>Status</th>
+                            <th>Safety</th>
+                            <th>Created</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="drafts-tbody">
+                        <tr>
+                            <td colspan="7" class="empty-state">
+                                <div class="empty-icon">📭</div>
+                                <div class="empty-title">No drafts yet</div>
+                                <p>Create your first ad draft to get started</p>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Create Draft Modal -->
+    <div class="modal" id="create-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <span class="modal-title">Create New Draft</span>
+                <button class="modal-close" onclick="closeModal('create-modal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="create-form">
+                    <div class="form-group">
+                        <label class="form-label">Platform *</label>
+                        <select class="form-input" name="platform" id="create-platform" required onchange="updateFormFields()">
+                            <option value="">Select Platform</option>
+                            <option value="google_ads">Google Ads</option>
+                            <option value="linkedin">LinkedIn</option>
+                            <option value="facebook">Facebook</option>
+                            <option value="google_business">Google Business</option>
+                            <option value="email">Email</option>
+                            <option value="seo_article">SEO Article</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Campaign Type *</label>
+                        <select class="form-input" name="campaign_type" id="create-type" required>
+                            <option value="post">Post</option>
+                            <option value="search_ad">Search Ad</option>
+                            <option value="display_ad">Display Ad</option>
+                            <option value="sponsored_post">Sponsored Post</option>
+                            <option value="article">Article</option>
+                            <option value="newsletter">Newsletter</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Title *</label>
+                        <input type="text" class="form-input" name="title" id="create-title" required placeholder="Enter ad title">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Body *</label>
+                        <textarea class="form-input" name="body" id="create-body" required placeholder="Enter ad content"></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Call to Action (CTA)</label>
+                        <input type="text" class="form-input" name="cta" id="create-cta" placeholder="e.g., Learn More, Get Quote, Sign Up">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Landing Page URL</label>
+                        <input type="url" class="form-input" name="landing_page" id="create-landing" placeholder="https://www.et-expo.com/...">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Target Keywords</label>
+                        <input type="text" class="form-input" name="target_keywords" id="create-keywords" placeholder="exhibition booth, trade show, etc.">
+                        <div class="form-hint">Comma-separated keywords</div>
+                    </div>
+                    <div class="form-group" id="budget-group" style="display: none;">
+                        <label class="form-label">Suggested Budget ($)</label>
+                        <input type="number" class="form-input" name="suggested_budget" id="create-budget" min="0" step="0.01" placeholder="0.00">
+                    </div>
+                    <div class="form-group" id="email-subject-group" style="display: none;">
+                        <label class="form-label">Email Subject</label>
+                        <input type="text" class="form-input" name="email_subject" id="create-email-subject" placeholder="Enter email subject line">
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeModal('create-modal')">Cancel</button>
+                <button class="btn btn-primary" onclick="createDraft()">Create Draft</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Draft Details Modal -->
+    <div class="modal" id="details-modal">
+        <div class="modal-content" style="max-width: 700px;">
+            <div class="modal-header">
+                <span class="modal-title">Draft Details</span>
+                <button class="modal-close" onclick="closeModal('details-modal')">&times;</button>
+            </div>
+            <div class="modal-body" id="details-content">
+                <div class="loading">Loading...</div>
+            </div>
+            <div class="modal-footer" id="details-actions">
+                <!-- Dynamic actions -->
+            </div>
+        </div>
+    </div>
+    
+    <!-- Toast -->
+    <div class="toast" id="toast"></div>
+    
+    <script>
+        let currentUser = null;
+        
+        async function init() {
+            try {
+                const res = await fetch('/api/auth/me');
+                const data = await res.json();
+                if (!data.user) {
+                    window.location.href = '/login';
+                    return;
+                }
+                currentUser = data.user;
+                loadDrafts();
+            } catch (e) {
+                window.location.href = '/login';
+            }
+        }
+        
+        async function loadDrafts() {
+            const platform = document.getElementById('filter-platform').value;
+            const status = document.getElementById('filter-status').value;
+            
+            let url = '/api/marketing/drafts?limit=100';
+            if (platform) url += `&platform=${platform}`;
+            if (status) url += `&status=${status}`;
+            
+            try {
+                const res = await fetch(url);
+                const data = await res.json();
+                
+                // Update stats
+                document.getElementById('stat-total').textContent = data.count || 0;
+                document.getElementById('stat-pending').textContent = data.drafts?.filter(d => d.status === 'pending_review').length || 0;
+                document.getElementById('stat-approved').textContent = data.drafts?.filter(d => d.status === 'approved').length || 0;
+                document.getElementById('stat-published').textContent = data.drafts?.filter(d => d.status === 'published').length || 0;
+                
+                renderDrafts(data.drafts || []);
+            } catch (e) {
+                showToast('Failed to load drafts', 'error');
+            }
+        }
+        
+        function renderDrafts(drafts) {
+            const tbody = document.getElementById('drafts-tbody');
+            
+            if (drafts.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="7" class="empty-state">
+                            <div class="empty-icon">📭</div>
+                            <div class="empty-title">No drafts found</div>
+                            <p>Try adjusting your filters or create a new draft</p>
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+            
+            tbody.innerHTML = drafts.map(draft => `
+                <tr>
+                    <td>
+                        <div style="font-weight: 500;">${draft.title || 'Untitled'}</div>
+                        <div style="font-size: 0.75rem; color: var(--gray-500);">ID: ${draft.id}</div>
+                    </td>
+                    <td><span class="platform-badge">${getPlatformIcon(draft.platform)} ${draft.platform}</span></td>
+                    <td>${draft.campaign_type}</td>
+                    <td><span class="status-badge status-${draft.status}">${getStatusLabel(draft.status)}</span></td>
+                    <td>
+                        ${draft.safety_check_passed ? 
+                            '<span style="color: var(--success);">✅</span>' : 
+                            '<span style="color: var(--gray-500);">—</span>'}
+                    </td>
+                    <td>${formatDate(draft.created_at)}</td>
+                    <td>
+                        <div class="action-buttons">
+                            <button class="btn btn-secondary btn-sm" onclick="viewDraft(${draft.id})">View</button>
+                            ${draft.status === 'draft' ? `<button class="btn btn-warning btn-sm" onclick="submitForApproval(${draft.id})">Submit</button>` : ''}
+                            ${draft.status === 'approved' ? `<button class="btn btn-success btn-sm" onclick="dryRun(${draft.id})">Dry Run</button>` : ''}
+                            ${draft.status === 'published' ? `<button class="btn btn-secondary btn-sm" onclick="viewLogs(${draft.id})">Logs</button>` : ''}
+                            <button class="btn btn-danger btn-sm" onclick="deleteDraft(${draft.id})">Delete</button>
+                        </div>
+                    </td>
+                </tr>
+            `).join('');
+        }
+        
+        function getPlatformIcon(platform) {
+            const icons = {
+                'google_ads': '🔍',
+                'linkedin': '💼',
+                'facebook': '📘',
+                'google_business': '📍',
+                'email': '📧',
+                'seo_article': '📝'
+            };
+            return icons[platform] || '📢';
+        }
+        
+        function getStatusLabel(status) {
+            const labels = {
+                'draft': 'Draft',
+                'pending_review': 'Pending Review',
+                'approved': 'Approved',
+                'rejected': 'Rejected',
+                'scheduled': 'Scheduled',
+                'published': 'Published',
+                'failed': 'Failed'
+            };
+            return labels[status] || status;
+        }
+        
+        function formatDate(dateStr) {
+            if (!dateStr) return '—';
+            const date = new Date(dateStr);
+            return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+        }
+        
+        function openCreateModal() {
+            document.getElementById('create-form').reset();
+            document.getElementById('create-modal').classList.add('show');
+        }
+        
+        function closeModal(modalId) {
+            document.getElementById(modalId).classList.remove('show');
+        }
+        
+        function updateFormFields() {
+            const platform = document.getElementById('create-platform').value;
+            document.getElementById('budget-group').style.display = 
+                ['google_ads', 'facebook'].includes(platform) ? 'block' : 'none';
+            document.getElementById('email-subject-group').style.display = 
+                platform === 'email' ? 'block' : 'none';
+        }
+        
+        async function createDraft() {
+            const platform = document.getElementById('create-platform').value;
+            const title = document.getElementById('create-title').value;
+            const body = document.getElementById('create-body').value;
+            
+            if (!platform || !title || !body) {
+                showToast('Please fill in required fields', 'error');
+                return;
+            }
+            
+            const draftData = {
+                platform: platform,
+                campaign_type: document.getElementById('create-type').value,
+                title: title,
+                body: body,
+                cta: document.getElementById('create-cta').value || null,
+                landing_page: document.getElementById('create-landing').value || null,
+                target_keywords: document.getElementById('create-keywords').value.split(',').map(k => k.trim()).filter(k => k) || [],
+                suggested_budget: parseFloat(document.getElementById('create-budget').value) || 0,
+                email_subject: document.getElementById('create-email-subject').value || null
+            };
+            
+            try {
+                const res = await fetch('/api/marketing/drafts', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(draftData)
+                });
+                const data = await res.json();
+                
+                if (data.success) {
+                    showToast('Draft created successfully!', 'success');
+                    closeModal('create-modal');
+                    loadDrafts();
+                } else {
+                    showToast(data.detail || 'Failed to create draft', 'error');
+                }
+            } catch (e) {
+                showToast('Failed to create draft', 'error');
+            }
+        }
+        
+        async function viewDraft(draftId) {
+            try {
+                const res = await fetch(`/api/marketing/drafts/${draftId}`);
+                const data = await res.json();
+                
+                if (data.success) {
+                    renderDraftDetails(data.draft);
+                    document.getElementById('details-modal').classList.add('show');
+                }
+            } catch (e) {
+                showToast('Failed to load draft', 'error');
+            }
+        }
+        
+        function renderDraftDetails(draft) {
+            const content = document.getElementById('details-content');
+            const actions = document.getElementById('details-actions');
+            
+            const targetKeywords = draft.target_keywords ? draft.target_keywords.join(', ') : '—';
+            const safetyWarnings = draft.safety_warnings ? draft.safety_warnings.join(', ') : 'None';
+            
+            content.innerHTML = `
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1.5rem;">
+                    <div>
+                        <div style="font-size: 0.75rem; color: var(--gray-500);">Platform</div>
+                        <div style="font-weight: 500;">${getPlatformIcon(draft.platform)} ${draft.platform}</div>
+                    </div>
+                    <div>
+                        <div style="font-size: 0.75rem; color: var(--gray-500);">Status</div>
+                        <div><span class="status-badge status-${draft.status}">${getStatusLabel(draft.status)}</span></div>
+                    </div>
+                    <div>
+                        <div style="font-size: 0.75rem; color: var(--gray-500);">Campaign Type</div>
+                        <div style="font-weight: 500;">${draft.campaign_type}</div>
+                    </div>
+                    <div>
+                        <div style="font-size: 0.75rem; color: var(--gray-500);">Leo Approved</div>
+                        <div>${draft.leo_approved ? '<span style="color: var(--success);">✅ Yes</span>' : '<span style="color: var(--gray-500);">❌ No</span>'}</div>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <div style="font-size: 0.75rem; color: var(--gray-500);">Title</div>
+                    <div style="font-weight: 500; margin-top: 0.25rem;">${draft.title || '—'}</div>
+                </div>
+                
+                <div class="form-group">
+                    <div style="font-size: 0.75rem; color: var(--gray-500);">Body</div>
+                    <div style="background: var(--gray-50); padding: 1rem; border-radius: 8px; margin-top: 0.25rem; white-space: pre-wrap;">${draft.body || '—'}</div>
+                </div>
+                
+                <div class="form-group">
+                    <div style="font-size: 0.75rem; color: var(--gray-500);">Call to Action</div>
+                    <div>${draft.cta || '—'}</div>
+                </div>
+                
+                <div class="form-group">
+                    <div style="font-size: 0.75rem; color: var(--gray-500);">Landing Page</div>
+                    <div><a href="${draft.landing_page}" target="_blank" style="color: var(--primary);">${draft.landing_page || '—'}</a></div>
+                </div>
+                
+                <div class="form-group">
+                    <div style="font-size: 0.75rem; color: var(--gray-500);">Target Keywords</div>
+                    <div>${targetKeywords}</div>
+                </div>
+                
+                ${draft.suggested_budget ? `
+                <div class="form-group">
+                    <div style="font-size: 0.75rem; color: var(--gray-500);">Suggested Budget</div>
+                    <div>$${draft.suggested_budget}</div>
+                </div>
+                ` : ''}
+                
+                <div style="background: ${draft.safety_check_passed ? '#d1fae5' : '#fef3c7'}; padding: 1rem; border-radius: 8px; margin-top: 1rem;">
+                    <div style="font-weight: 600; margin-bottom: 0.5rem;">
+                        ${draft.safety_check_passed ? '✅ Safety Check Passed' : '⚠️ Safety Check Not Passed'}
+                    </div>
+                    <div style="font-size: 0.875rem; color: ${draft.safety_check_passed ? '#065f46' : '#92400e'};">
+                        Warnings: ${safetyWarnings}
+                    </div>
+                </div>
+                
+                <div style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--gray-200); font-size: 0.75rem; color: var(--gray-500);">
+                    Created: ${formatDate(draft.created_at)} | Version: ${draft.version}
+                </div>
+            `;
+            
+            // Render actions based on status
+            let actionButtons = `<button class="btn btn-secondary" onclick="closeModal('details-modal')">Close</button>`;
+            
+            if (draft.status === 'draft') {
+                actionButtons += `<button class="btn btn-warning" onclick="submitForApproval(${draft.id}); closeModal('details-modal');">Submit for Approval</button>`;
+            }
+            if (draft.status === 'approved') {
+                actionButtons += `<button class="btn btn-success" onclick="dryRun(${draft.id}); closeModal('details-modal');">Dry Run</button>`;
+            }
+            if (draft.status === 'published') {
+                actionButtons += `<button class="btn btn-secondary" onclick="viewLogs(${draft.id}); closeModal('details-modal');">View Logs</button>`;
+            }
+            
+            actions.innerHTML = actionButtons;
+        }
+        
+        async function submitForApproval(draftId) {
+            if (!confirm('Submit this draft for approval?')) return;
+            
+            try {
+                const res = await fetch(`/api/marketing/drafts/${draftId}/submit?priority=normal`, {
+                    method: 'POST'
+                });
+                const data = await res.json();
+                
+                if (data.success) {
+                    showToast('Draft submitted for approval!', 'success');
+                    loadDrafts();
+                } else {
+                    showToast(data.detail || 'Failed to submit', 'error');
+                }
+            } catch (e) {
+                showToast('Failed to submit for approval', 'error');
+            }
+        }
+        
+        async function dryRun(draftId) {
+            showToast('Running dry-run...', 'info');
+            
+            try {
+                const res = await fetch(`/api/marketing/drafts/${draftId}/dry-run`, {
+                    method: 'POST'
+                });
+                const data = await res.json();
+                
+                if (data.success) {
+                    showToast(`Dry-run complete! ${data.warnings?.length || 0} warnings. Check logs.`, 'success');
+                } else {
+                    showToast(data.detail || 'Dry-run failed', 'error');
+                }
+            } catch (e) {
+                showToast('Dry-run failed', 'error');
+            }
+        }
+        
+        async function viewLogs(draftId) {
+            try {
+                const res = await fetch(`/api/marketing/logs?draft_id=${draftId}`);
+                const data = await res.json();
+                
+                if (data.success && data.logs.length > 0) {
+                    alert(`Publish Logs:\n\n${data.logs.map(l => 
+                        `${l.action} - ${l.status} (Mock: ${l.mock_mode})`
+                    ).join('\n')}`);
+                } else {
+                    alert('No logs found for this draft.');
+                }
+            } catch (e) {
+                showToast('Failed to load logs', 'error');
+            }
+        }
+        
+        async function deleteDraft(draftId) {
+            if (!confirm('Delete this draft? This cannot be undone.')) return;
+            
+            try {
+                const res = await fetch(`/api/marketing/drafts/${draftId}`, {
+                    method: 'DELETE'
+                });
+                const data = await res.json();
+                
+                if (data.success) {
+                    showToast('Draft deleted', 'success');
+                    loadDrafts();
+                } else {
+                    showToast(data.detail || 'Failed to delete', 'error');
+                }
+            } catch (e) {
+                showToast('Failed to delete draft', 'error');
+            }
+        }
+        
+        function showToast(message, type = 'info') {
+            const toast = document.getElementById('toast');
+            toast.textContent = message;
+            toast.className = 'toast show ' + type;
+            setTimeout(() => toast.classList.remove('show'), 3000);
+        }
+        
+        // Initialize
+        init();
+    </script>
+</body>
+</html>

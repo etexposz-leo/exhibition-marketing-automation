@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Approval Queue - ET EXPO</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/css/styles.css">
+    <style>
+        :root {
+            --primary: #6366f1;
+            --primary-dark: #4f46e5;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --gray-50: #f9fafb;
+            --gray-100: #f3f4f6;
+            --gray-200: #e5e7eb;
+            --gray-300: #d1d5db;
+            --gray-500: #6b7280;
+            --gray-700: #374151;
+            --gray-900: #111827;
+        }
+        
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Inter', sans-serif; background: var(--gray-50); color: var(--gray-900); }
+        
+        .nav { background: white; border-bottom: 1px solid var(--gray-200); padding: 1rem 2rem; display: flex; justify-content: space-between; align-items: center; }
+        .nav-brand { font-weight: 700; font-size: 1.25rem; color: var(--primary); display: flex; align-items: center; gap: 0.5rem; }
+        .nav-links { display: flex; gap: 1.5rem; align-items: center; }
+        .nav-links a { color: var(--gray-500); text-decoration: none; font-weight: 500; transition: color 0.2s; }
+        .nav-links a:hover, .nav-links a.active { color: var(--primary); }
+        
+        .container { max-width: 1400px; margin: 0 auto; padding: 2rem; }
+        
+        .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; }
+        .page-title { font-size: 1.5rem; font-weight: 700; }
+        .page-subtitle { color: var(--gray-500); margin-top: 0.25rem; }
+        
+        .safety-banner { background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%); border: 1px solid #f59e0b; border-radius: 12px; padding: 1rem 1.5rem; margin-bottom: 2rem; display: flex; align-items: center; gap: 1rem; }
+        .safety-icon { font-size: 1.5rem; }
+        .safety-text { flex: 1; }
+        .safety-title { font-weight: 600; color: #92400e; }
+        .safety-desc { color: #a16207; font-size: 0.875rem; }
+        
+        .btn { padding: 0.5rem 1rem; border-radius: 8px; font-weight: 500; font-size: 0.875rem; cursor: pointer; transition: all 0.2s; border: none; display: inline-flex; align-items: center; gap: 0.5rem; }
+        .btn-primary { background: var(--primary); color: white; }
+        .btn-primary:hover { background: var(--primary-dark); }
+        .btn-secondary { background: white; color: var(--gray-700); border: 1px solid var(--gray-300); }
+        .btn-secondary:hover { background: var(--gray-50); }
+        .btn-success { background: var(--success); color: white; }
+        .btn-success:hover { background: #059669; }
+        .btn-danger { background: var(--danger); color: white; }
+        .btn-danger:hover { background: #dc2626; }
+        .btn-warning { background: var(--warning); color: white; }
+        .btn-warning:hover { background: #d97706; }
+        .btn-sm { padding: 0.375rem 0.75rem; font-size: 0.75rem; }
+        
+        .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; margin-bottom: 2rem; }
+        .stat-card { background: white; border-radius: 12px; border: 1px solid var(--gray-200); padding: 1.25rem; }
+        .stat-value { font-size: 2rem; font-weight: 700; color: var(--gray-900); }
+        .stat-label { color: var(--gray-500); font-size: 0.875rem; margin-top: 0.25rem; }
+        .stat-icon { font-size: 1.5rem; margin-bottom: 0.5rem; }
+        
+        .card { background: white; border-radius: 12px; border: 1px solid var(--gray-200); overflow: hidden; }
+        .card-header { padding: 1rem 1.5rem; border-bottom: 1px solid var(--gray-200); font-weight: 600; display: flex; justify-content: space-between; align-items: center; }
+        .card-body { padding: 1.5rem; }
+        
+        .approval-list { display: flex; flex-direction: column; gap: 1rem; }
+        .approval-item { background: white; border-radius: 12px; border: 1px solid var(--gray-200); padding: 1.5rem; display: flex; gap: 1.5rem; align-items: flex-start; }
+        .approval-item:hover { border-color: var(--primary); }
+        
+        .approval-icon { width: 48px; height: 48px; border-radius: 12px; background: var(--gray-100); display: flex; align-items: center; justify-content: center; font-size: 1.5rem; flex-shrink: 0; }
+        
+        .approval-content { flex: 1; }
+        .approval-title { font-weight: 600; margin-bottom: 0.25rem; }
+        .approval-meta { display: flex; gap: 1rem; color: var(--gray-500); font-size: 0.875rem; }
+        .approval-meta span { display: flex; align-items: center; gap: 0.25rem; }
+        
+        .priority-badge { padding: 0.25rem 0.75rem; border-radius: 9999px; font-size: 0.75rem; font-weight: 500; }
+        .priority-low { background: var(--gray-100); color: var(--gray-700); }
+        .priority-normal { background: #dbeafe; color: #1e40af; }
+        .priority-high { background: #fef3c7; color: #92400e; }
+        .priority-urgent { background: #fee2e2; color: #991b1b; }
+        
+        .approval-body { margin-top: 0.75rem; color: var(--gray-700); font-size: 0.875rem; line-height: 1.5; }
+        
+        .approval-actions { display: flex; gap: 0.5rem; flex-shrink: 0; }
+        
+        .status-section { margin-bottom: 2rem; }
+        .section-title { font-weight: 600; margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem; }
+        
+        .empty-state { text-align: center; padding: 4rem 2rem; color: var(--gray-500); }
+        .empty-icon { font-size: 3rem; margin-bottom: 1rem; }
+        .empty-title { font-size: 1.25rem; font-weight: 600; color: var(--gray-700); margin-bottom: 0.5rem; }
+        
+        .modal { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); align-items: center; justify-content: center; z-index: 1000; }
+        .modal.show { display: flex; }
+        .modal-content { background: white; border-radius: 16px; max-width: 500px; width: 90%; }
+        .modal-header { padding: 1.5rem; border-bottom: 1px solid var(--gray-200); display: flex; justify-content: space-between; align-items: center; }
+        .modal-title { font-weight: 600; font-size: 1.125rem; }
+        .modal-close { background: none; border: none; font-size: 1.5rem; cursor: pointer; color: var(--gray-500); }
+        .modal-body { padding: 1.5rem; }
+        .modal-footer { padding: 1.5rem; border-top: 1px solid var(--gray-200); display: flex; justify-content: flex-end; gap: 0.75rem; }
+        
+        .form-group { margin-bottom: 1rem; }
+        .form-label { display: block; font-weight: 500; margin-bottom: 0.5rem; color: var(--gray-700); }
+        .form-input { width: 100%; padding: 0.75rem 1rem; border: 1px solid var(--gray-300); border-radius: 8px; font-size: 0.875rem; }
+        textarea.form-input { resize: vertical; min-height: 100px; }
+        
+        .toast { position: fixed; bottom: 2rem; right: 2rem; background: var(--gray-900); color: white; padding: 1rem 1.5rem; border-radius: 12px; display: none; z-index: 1001; }
+        .toast.show { display: block; }
+        .toast.success { background: var(--success); }
+        .toast.error { background: var(--danger); }
+    </style>
+</head>
+<body>
+    <nav class="nav">
+        <div class="nav-brand">📢 ET EXPO Marketing</div>
+        <div class="nav-links">
+            <a href="/">Dashboard</a>
+            <a href="/history">History</a>
+            <a href="/settings">Settings</a>
+            <a href="/growth">Growth Advisor</a>
+            <a href="/marketing/drafts" class="active">Marketing</a>
+            <a href="/api/auth/logout">Logout</a>
+        </div>
+    </nav>
+    
+    <div class="container">
+        <div class="safety-banner">
+            <span class="safety-icon">🛡️</span>
+            <div class="safety-text">
+                <div class="safety-title">Human Approval Required</div>
+                <div class="safety-desc">All drafts must be manually approved. Real publishing is disabled.</div>
+            </div>
+        </div>
+        
+        <div class="page-header">
+            <div>
+                <h1 class="page-title">📋 Approval Queue</h1>
+                <p class="page-subtitle">Review and approve marketing drafts before publishing</p>
+            </div>
+        </div>
+        
+        <div class="stats">
+            <div class="stat-card">
+                <div class="stat-icon">⏳</div>
+                <div class="stat-value" id="stat-pending">0</div>
+                <div class="stat-label">Pending Review</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon">✅</div>
+                <div class="stat-value" id="stat-approved">0</div>
+                <div class="stat-label">Approved Today</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon">❌</div>
+                <div class="stat-value" id="stat-rejected">0</div>
+                <div class="stat-label">Rejected Today</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon">🚀</div>
+                <div class="stat-value" id="stat-published">0</div>
+                <div class="stat-label">Published (Mock)</div>
+            </div>
+        </div>
+        
+        <div class="status-section">
+            <div class="section-title">
+                ⏳ Pending Approvals
+                <span id="pending-count" style="background: var(--gray-200); padding: 0.25rem 0.5rem; border-radius: 9999px; font-size: 0.75rem;">0</span>
+            </div>
+            <div class="approval-list" id="pending-list">
+                <div class="empty-state">
+                    <div class="empty-icon">📭</div>
+                    <div class="empty-title">No pending approvals</div>
+                    <p>All drafts have been reviewed</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="status-section">
+            <div class="section-title">✅ Recently Approved</div>
+            <div class="approval-list" id="approved-list">
+                <div class="empty-state" style="padding: 2rem;">
+                    <p>No recent approvals</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Approve Modal -->
+    <div class="modal" id="approve-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <span class="modal-title">✅ Approve Draft</span>
+                <button class="modal-close" onclick="closeModal('approve-modal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p style="margin-bottom: 1rem;">You are about to approve this draft for publishing.</p>
+                <div class="form-group">
+                    <label class="form-label">Approval Notes (optional)</label>
+                    <textarea class="form-input" id="approve-notes" placeholder="Add any notes for the publisher..."></textarea>
+                </div>
+                <div style="background: #fef3c7; padding: 1rem; border-radius: 8px; margin-top: 1rem;">
+                    <strong>⚠️ Leo Approval</strong>
+                    <p style="font-size: 0.875rem; margin-top: 0.5rem; color: #92400e;">
+                        Checking this box confirms you are Leo and explicitly approve this draft.
+                    </p>
+                    <label style="display: flex; align-items: center; gap: 0.5rem; margin-top: 0.5rem; cursor: pointer;">
+                        <input type="checkbox" id="is-leo-checkbox">
+                        <span>I am Leo and I approve this draft</span>
+                    </label>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeModal('approve-modal')">Cancel</button>
+                <button class="btn btn-success" onclick="confirmApprove()">Approve</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Reject Modal -->
+    <div class="modal" id="reject-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <span class="modal-title">❌ Reject Draft</span>
+                <button class="modal-close" onclick="closeModal('reject-modal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p style="margin-bottom: 1rem;">Please provide a reason for rejection.</p>
+                <div class="form-group">
+                    <label class="form-label">Rejection Reason *</label>
+                    <textarea class="form-input" id="reject-reason" placeholder="Explain why this draft is being rejected..." required></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeModal('reject-modal')">Cancel</button>
+                <button class="btn btn-danger" onclick="confirmReject()">Reject Draft</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Toast -->
+    <div class="toast" id="toast"></div>
+    
+    <script>
+        let currentUser = null;
+        let currentDraftId = null;
+        let drafts = [];
+        
+        async function init() {
+            try {
+                const res = await fetch('/api/auth/me');
+                const data = await res.json();
+                if (!data.user) {
+                    window.location.href = '/login';
+                    return;
+                }
+                currentUser = data.user;
+                loadApprovals();
+            } catch (e) {
+                window.location.href = '/login';
+            }
+        }
+        
+        async function loadApprovals() {
+            try {
+                // Load all drafts
+                const res = await fetch('/api/marketing/drafts?limit=100');
+                const data = await res.json();
+                drafts = data.drafts || [];
+                
+                // Update stats
+                const today = new Date().toDateString();
+                const pending = drafts.filter(d => d.status === 'pending_review');
+                const approved = drafts.filter(d => d.status === 'approved');
+                const rejected = drafts.filter(d => d.status === 'rejected');
+                const published = drafts.filter(d => d.status === 'published');
+                
+                document.getElementById('stat-pending').textContent = pending.length;
+                document.getElementById('stat-approved').textContent = approved.length;
+                document.getElementById('stat-rejected').textContent = rejected.length;
+                document.getElementById('stat-published').textContent = published.length;
+                document.getElementById('pending-count').textContent = pending.length;
+                
+                renderPendingApprovals(pending);
+            } catch (e) {
+                showToast('Failed to load approvals', 'error');
+            }
+        }
+        
+        function renderPendingApprovals(pending) {
+            const list = document.getElementById('pending-list');
+            
+            if (pending.length === 0) {
+                list.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-icon">📭</div>
+                        <div class="empty-title">No pending approvals</div>
+                        <p>All drafts have been reviewed</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            list.innerHTML = pending.map(draft => `
+                <div class="approval-item">
+                    <div class="approval-icon">${getPlatformIcon(draft.platform)}</div>
+                    <div class="approval-content">
+                        <div class="approval-title">${draft.title || 'Untitled Draft'}</div>
+                        <div class="approval-meta">
+                            <span>📋 ${draft.platform}</span>
+                            <span>🕐 ${formatDate(draft.created_at)}</span>
+                            <span>👤 ID: ${draft.id}</span>
+                        </div>
+                        <div class="approval-actions" style="margin-top: 1rem;">
+                            <button class="btn btn-success btn-sm" onclick="openApproveModal(${draft.id})">✅ Approve</button>
+                            <button class="btn btn-danger btn-sm" onclick="openRejectModal(${draft.id})">❌ Reject</button>
+                            <button class="btn btn-secondary btn-sm" onclick="location.href='/marketing/drafts'">View Details</button>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+        
+        function getPlatformIcon(platform) {
+            const icons = {
+                'google_ads': '🔍',
+                'linkedin': '💼',
+                'facebook': '📘',
+                'google_business': '📍',
+                'email': '📧',
+                'seo_article': '📝'
+            };
+            return icons[platform] || '📢';
+        }
+        
+        function formatDate(dateStr) {
+            if (!dateStr) return '—';
+            const date = new Date(dateStr);
+            return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+        }
+        
+        function openApproveModal(draftId) {
+            currentDraftId = draftId;
+            document.getElementById('approve-notes').value = '';
+            document.getElementById('is-leo-checkbox').checked = false;
+            document.getElementById('approve-modal').classList.add('show');
+        }
+        
+        function openRejectModal(draftId) {
+            currentDraftId = draftId;
+            document.getElementById('reject-reason').value = '';
+            document.getElementById('reject-modal').classList.add('show');
+        }
+        
+        function closeModal(modalId) {
+            document.getElementById(modalId).classList.remove('show');
+        }
+        
+        async function confirmApprove() {
+            const notes = document.getElementById('approve-notes').value;
+            const isLeo = document.getElementById('is-leo-checkbox').checked;
+            
+            if (!confirm(`Confirm approval${isLeo ? ' (as Leo)' : ''}?`)) return;
+            
+            try {
+                const res = await fetch(`/api/marketing/drafts/${currentDraftId}/approve?notes=${encodeURIComponent(notes)}&is_leo=${isLeo}`, {
+                    method: 'POST'
+                });
+                const data = await res.json();
+                
+                if (data.success) {
+                    showToast(`Draft approved${isLeo ? ' (Leo)' : ''}!`, 'success');
+                    closeModal('approve-modal');
+                    loadApprovals();
+                } else {
+                    showToast(data.detail || 'Failed to approve', 'error');
+                }
+            } catch (e) {
+                showToast('Failed to approve draft', 'error');
+            }
+        }
+        
+        async function confirmReject() {
+            const reason = document.getElementById('reject-reason').value;
+            
+            if (!reason.trim()) {
+                showToast('Please provide a rejection reason', 'error');
+                return;
+            }
+            
+            try {
+                const res = await fetch(`/api/marketing/drafts/${currentDraftId}/reject?reason=${encodeURIComponent(reason)}`, {
+                    method: 'POST'
+                });
+                const data = await res.json();
+                
+                if (data.success) {
+                    showToast('Draft rejected', 'success');
+                    closeModal('reject-modal');
+                    loadApprovals();
+                } else {
+                    showToast(data.detail || 'Failed to reject', 'error');
+                }
+            } catch (e) {
+                showToast('Failed to reject draft', 'error');
+            }
+        }
+        
+        function showToast(message, type = 'info') {
+            const toast = document.getElementById('toast');
+            toast.textContent = message;
+            toast.className = 'toast show ' + type;
+            setTimeout(() => toast.classList.remove('show'), 3000);
+        }
+        
+        // Initialize
+        init();
+    </script>
+</body>
+</html>
