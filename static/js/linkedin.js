@@ -10,8 +10,17 @@ function showLifecycle() {
 }
 async function api(path, body) {
     const response = await fetch(path, body === undefined ? {} : {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)});
-    const data = await response.json();
-    if (!response.ok) throw new Error(typeof data.detail === 'string' ? data.detail : 'Request rejected');
+    let data;
+    try { data = await response.json(); }
+    catch (_) { throw new Error(`Server returned an unreadable response (HTTP ${response.status}). Please retry or contact the administrator.`); }
+    if (!response.ok) {
+        if (response.status === 401) throw new Error('Your login session has expired. Sign in again before connecting LinkedIn.');
+        const detail = data.detail;
+        const message = typeof detail === 'string' ? detail :
+            detail && typeof detail.message === 'string' ? detail.message +
+            (Array.isArray(detail.fields) ? ' Required configuration: ' + detail.fields.join(', ') : '') : 'Request rejected';
+        throw new Error(`HTTP ${response.status}: ${message}`);
+    }
     return data;
 }
 async function load() {
@@ -28,7 +37,19 @@ async function load() {
     showLifecycle();
 }
 async function guarded(action) {try {await action();} catch(e) {el('result').textContent=e.message;}}
-el('connect').onclick=()=>guarded(async()=>{const data=await api('/api/linkedin/oauth/start',{});location.assign(data.authorization_url);});
+el('connect').onclick=async()=>{
+    const button=el('connect'), status=el('oauth-status');
+    if(button.disabled) return;
+    button.disabled=true; status.textContent='Starting LinkedIn authorization…';
+    try {
+        const data=await api('/api/linkedin/oauth/start',{});
+        const url=new URL(data.authorization_url);
+        if(url.origin!=='https://www.linkedin.com' || url.pathname!=='/oauth/v2/authorization') throw new Error('Server returned an invalid LinkedIn authorization URL.');
+        status.textContent='Opening LinkedIn. Complete login and consent on LinkedIn.';
+        location.assign(url.href);
+    } catch(e) {status.textContent=e.message;el('result').textContent=e.message;}
+    finally {button.disabled=false;}
+};
 el('account').onchange=showLifecycle;
 el('refresh').onclick=()=>guarded(async()=>{await api(`/api/linkedin/accounts/${el('account').value}/refresh`,{});await load();});
 el('disconnect').onclick=()=>guarded(async()=>{const data=await api(`/api/linkedin/accounts/${el('account').value}/disconnect`,{});el('connection').textContent=data.message;await load();});

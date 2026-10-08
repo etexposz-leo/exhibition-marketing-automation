@@ -23,9 +23,16 @@ def owned_account(db, ident):
     return row
 
 
+def oauth_config():
+    try:
+        return channel.oauth_config()
+    except channel.OAuthConfigurationError as exc:
+        raise HTTPException(503, detail=exc.detail) from None
+
+
 def same_origin(request, local_only=False):
     origin = request.headers.get('origin')
-    expected = urlsplit(os.getenv('LINKEDIN_REDIRECT_URI', '') if local_only else channel.oauth_config()['REDIRECT_URI'])
+    expected = urlsplit(os.getenv('LINKEDIN_REDIRECT_URI', '') if local_only else oauth_config()['REDIRECT_URI'])
     if not origin or origin != f'{expected.scheme}://{expected.netloc}':
         raise HTTPException(403, 'Same-origin request required')
 
@@ -37,7 +44,7 @@ def digest(value):
 @router.post('/oauth/start')
 async def start(request: Request, db: Session = Depends(get_db)):
     same_origin(request)
-    cfg = channel.oauth_config()
+    cfg = oauth_config()
     state = secrets.token_urlsafe(48)
     nonce = secrets.token_urlsafe(32)
     request.session['linkedin_nonce'] = nonce
@@ -107,7 +114,7 @@ async def callback(request: Request, state: str = '', code: str = '', error: str
         raise HTTPException(403, 'OAuth state expired or already consumed')
     if error or not code:
         raise HTTPException(400, 'LinkedIn authorization was not completed')
-    cfg = channel.oauth_config()
+    cfg = oauth_config()
     data = await token_response({'grant_type':'authorization_code','code':code,'client_id':cfg['CLIENT_ID'],
                                 'client_secret':cfg['CLIENT_SECRET'],'redirect_uri':cfg['REDIRECT_URI']})
     urn, name = await verified_identity(data['access_token'])
@@ -162,7 +169,7 @@ async def refresh(account_id: int, request: Request, db: Session = Depends(get_d
     account = owned_account(db, account_id)
     if account.connection_status != 'connected' or not account.refresh_expires_at or account.refresh_expires_at <= utcnow():
         raise HTTPException(409, 'Programmatic refresh unavailable; reconnect with OAuth')
-    cfg = channel.oauth_config()
+    cfg = oauth_config()
     token = CredentialStore().get(db, account.user_id, f'account:{account.id}', 'refresh_token')
     data = await token_response({'grant_type':'refresh_token','refresh_token':token,
                                 'client_id':cfg['CLIENT_ID'],'client_secret':cfg['CLIENT_SECRET']})

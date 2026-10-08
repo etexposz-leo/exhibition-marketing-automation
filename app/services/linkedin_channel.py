@@ -11,15 +11,43 @@ from app.services.platform_adapter import BasePlatformAdapter, PlatformType, Pla
 SCOPES = {'openid', 'profile', 'w_member_social'}
 
 
+class OAuthConfigurationError(ValueError):
+    """Safe, fixed diagnostics; never include configured values."""
+    def __init__(self, code, message, fields):
+        super().__init__(message)
+        self.detail = dict(code=code, message=message, fields=fields)
+
+
 def oauth_config():
-    if os.getenv('LINKEDIN_OAUTH_ENABLED') != 'true':
-        raise ValueError('LinkedIn OAuth requires owner configuration')
     cfg = {k: os.getenv('LINKEDIN_' + k, '') for k in ('CLIENT_ID', 'CLIENT_SECRET', 'REDIRECT_URI', 'API_VERSION')}
-    uri = urlsplit(cfg['REDIRECT_URI'])
-    if not all(cfg.values()) or uri.scheme != 'https' or not uri.hostname or uri.username or uri.query or uri.fragment:
-        raise ValueError('LinkedIn configuration incomplete')
-    if uri.path != '/api/linkedin/oauth/callback' or not re.fullmatch(r'20\d{4}', cfg['API_VERSION']):
-        raise ValueError('LinkedIn callback/version configuration invalid')
+    missing = ['LINKEDIN_' + k for k, value in cfg.items() if not value.strip()]
+    if os.getenv('LINKEDIN_OAUTH_ENABLED') != 'true':
+        missing.insert(0, 'LINKEDIN_OAUTH_ENABLED')
+    if missing:
+        raise OAuthConfigurationError('LINKEDIN_OAUTH_NOT_CONFIGURED',
+            'LinkedIn OAuth is unavailable. Configure the listed server variables; set LINKEDIN_OAUTH_ENABLED=true.', missing)
+    try:
+        uri = urlsplit(cfg['REDIRECT_URI'])
+        valid = uri.scheme == 'https' and uri.hostname and not uri.username and not uri.password and not uri.query and not uri.fragment and uri.path == '/api/linkedin/oauth/callback'
+        uri.port
+    except ValueError:
+        valid = False
+    if not valid:
+        raise OAuthConfigurationError('LINKEDIN_REDIRECT_INVALID',
+            'LinkedIn redirect URI must be an HTTPS URL ending in /api/linkedin/oauth/callback.', ['LINKEDIN_REDIRECT_URI'])
+    if os.getenv('MARKETING_CLOUD_MODE') == 'true':
+        from app.core.cloud_runtime import base_url
+        try:
+            expected = base_url() + '/api/linkedin/oauth/callback'
+        except RuntimeError:
+            raise OAuthConfigurationError('LINKEDIN_PUBLIC_ORIGIN_INVALID',
+                'Configure the public HTTPS application origin.', ['APP_BASE_URL']) from None
+        if cfg['REDIRECT_URI'] != expected or uri.hostname in ('localhost','127.0.0.1','::1'):
+            raise OAuthConfigurationError('LINKEDIN_REDIRECT_ORIGIN_MISMATCH',
+                'Cloud LinkedIn callback must match APP_BASE_URL and cannot use localhost.', ['LINKEDIN_REDIRECT_URI','APP_BASE_URL'])
+    if not re.fullmatch(r'20\d{4}', cfg['API_VERSION']):
+        raise OAuthConfigurationError('LINKEDIN_API_VERSION_INVALID',
+            'Configure a supported LinkedIn API version in YYYYMM format.', ['LINKEDIN_API_VERSION'])
     return cfg
 
 

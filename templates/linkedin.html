@@ -3,7 +3,7 @@
 <style>body{font:16px system-ui;max-width:850px;margin:3rem auto;padding:1rem;background:#f5f7fb;color:#15253c}section{background:white;padding:1.5rem;border-radius:12px;margin:1rem 0}label{display:block;margin:1rem 0}textarea,select,input{display:block;width:100%;box-sizing:border-box;padding:.7rem}button{padding:.7rem;margin:.3rem}pre{white-space:pre-wrap;overflow-wrap:anywhere}small{display:block}</style></head>
 <body><h1>LinkedIn — Phase 2A</h1><p id="gate">Loading connection status…</p><a href="/marketing">Marketing workspace</a>
 <section><h2>Account connection</h2><p>Only a verified LinkedIn member identity can publish. Organization identities remain unavailable.</p>
-<button id="connect">Connect with LinkedIn OAuth</button><label>Publish identity<select id="account"></select></label>
+<button id="connect">Connect with LinkedIn OAuth</button><p id="oauth-status" role="alert" aria-live="assertive"></p><label>Publish identity<select id="account"></select></label>
 <button id="refresh">Refresh token if supported</button><button id="disconnect">Disconnect locally</button><p id="connection"></p></section>
 <section><h2>Content</h2><label>Execution mode<select id="mode"><option value="TEST">TEST — local validation</option><option value="MOCK">MOCK — simulation</option><option value="REAL">REAL — external LinkedIn post</option></select></label>
 <label>Text<textarea id="content" rows="7" maxlength="3000"></textarea></label>
