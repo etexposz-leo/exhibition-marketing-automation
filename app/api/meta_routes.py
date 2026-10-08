@@ -93,6 +93,54 @@ async def token_expiry(data, cfg, received_at):
     logging.getLogger(__name__).warning('META_EXPIRY source=%s', source)
     return expiry, source
 
+async def assigned_facebook_pages(token, cfg):
+    """Business-user edge, bounded and restricted to freshly consented Page IDs."""
+    inspected = (await api('GET', 'debug_token', cfg['CLIENT_ID']+'|'+cfg['CLIENT_SECRET'],
+                           params={'input_token': token})).get('data') or {}
+    if inspected.get('is_valid') is not True or inspected.get('app_id') != cfg['CLIENT_ID']:
+        raise HTTPException(400, 'Meta consent inspection invalid')
+    targets = {}
+    for grant in inspected.get('granular_scopes', []):
+        if isinstance(grant, dict):
+            targets.setdefault(grant.get('scope'), set()).update(
+                x for x in (grant.get('target_ids') or []) if channel.valid_id(x))
+    allowed = set.intersection(*(targets.get(s, set()) for s in channel.SCOPES['facebook']))
+    logger = logging.getLogger(__name__)
+    logger.warning('META_DISCOVERY consent_page_count=%s business_permission=%s',
+                   len(allowed), 'business_management' in inspected.get('scopes', []))
+    if not allowed:
+        raise HTTPException(409, 'META_PAGE_CONSENT_MISSING: no Page is covered by all required permissions; review the selected Page permissions')
+    pages = []; after = None; seen = set()
+    for _ in range(10):
+        params = {'fields': 'id,name,access_token,tasks', 'limit': 100}
+        if after: params['after'] = after
+        try:
+            response = await channel.http.request('GET', 'me/assigned_pages', token, params=params)
+            found = response.json()
+        except Exception:
+            raise HTTPException(502, 'META_ASSIGNED_PAGES_UNAVAILABLE: business Page discovery failed; no account was bound') from None
+        if response.status_code != 200 or not isinstance(found, dict) or 'error' in found:
+            error = found.get('error', {}) if isinstance(found, dict) else {}
+            code = error.get('code') if isinstance(error, dict) else None
+            code = code if type(code) is int else 0
+            logger.warning('META_DISCOVERY assigned_pages_http=%s provider_code=%s', response.status_code, code)
+            raise HTTPException(409, f'META_BUSINESS_PAGE_ACCESS_REQUIRED: /me/accounts returned no Pages; assigned_pages HTTP {response.status_code}, code {code}. Check business-user access and app permissions; do not change the App Secret')
+        items = found.get('data')
+        if not isinstance(items, list) or any(not isinstance(p, dict) for p in items):
+            raise HTTPException(502, 'META_ASSIGNED_PAGES_INVALID: invalid Page list')
+        pages.extend(p for p in items if p.get('id') in allowed)
+        paging = found.get('paging') or {}
+        if not paging.get('next'): break
+        after = (paging.get('cursors') or {}).get('after')
+        if not isinstance(after, str) or not after or after in seen:
+            raise HTTPException(502, 'META_ASSIGNED_PAGES_INVALID: incomplete pagination')
+        seen.add(after)
+    else:
+        raise HTTPException(502, 'META_ASSIGNED_PAGES_INVALID: discovery limit reached')
+    logger.warning('META_DISCOVERY assigned_consented_page_count=%s', len(pages))
+    return pages
+
+
 @router.post('/{platform}/oauth/start')
 async def start(platform:str,request:Request,db:Session=Depends(get_db)):
     platform_name(platform);origin(request);cfg=config()
@@ -136,6 +184,8 @@ async def callback(request:Request,state:str='',code:str='',error:str='',db:Sess
         if not after:raise HTTPException(400,'Incomplete Page discovery')
     else:raise HTTPException(400,'Page discovery exceeds safe bound')
     logging.getLogger(__name__).warning('META_DISCOVERY platform=%s page_count=%s',platform,len(pages))
+    if platform=='facebook' and not pages:
+        pages=await assigned_facebook_pages(token,cfg)
     if platform=='instagram' and not pages:
         # Business-managed assets may not enumerate in /me/accounts. Reuse only an
         # existing owner-bound Page AND require fresh consent for that exact pair.
