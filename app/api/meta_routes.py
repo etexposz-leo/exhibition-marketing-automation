@@ -141,6 +141,12 @@ async def assigned_facebook_pages(token, cfg):
     return pages
 
 
+def requested_oauth_scopes(platform):
+    # Owner-approved business discovery permission. Publishing still uses the
+    # channel's original permission and REAL-switch requirements.
+    return channel.SCOPES[platform] | ({'business_management'} if platform == 'facebook' else set())
+
+
 @router.post('/{platform}/oauth/start')
 async def start(platform:str,request:Request,db:Session=Depends(get_db)):
     platform_name(platform);origin(request);cfg=config()
@@ -148,10 +154,10 @@ async def start(platform:str,request:Request,db:Session=Depends(get_db)):
     request.session['meta_nonce']=nonce;request.session['meta_platform']=platform
     db.add(OAuthAttempt(user_id=db.info['owner_id'],state_hash=digest(state),browser_hash=digest(nonce+platform),expires_at=utcnow()+timedelta(minutes=10)))
     db.commit()
-    return {'requested_permissions':sorted(channel.SCOPES[platform]),'authorization_url':
+    return {'requested_permissions':sorted(requested_oauth_scopes(platform)),'authorization_url':
         f"https://www.facebook.com/{cfg['API_VERSION']}/dialog/oauth?"+urlencode({
             'client_id':cfg['CLIENT_ID'],'redirect_uri':cfg['REDIRECT_URI'],'response_type':'code',
-            'scope':','.join(sorted(channel.SCOPES[platform])),'state':state})}
+            'scope':','.join(sorted(requested_oauth_scopes(platform))),'state':state})}
 
 @router.get('/oauth/callback')
 async def callback(request:Request,state:str='',code:str='',error:str='',db:Session=Depends(get_db)):
@@ -235,7 +241,7 @@ async def callback(request:Request,state:str='',code:str='',error:str='',db:Sess
     if not candidates:raise HTTPException(409,'FACEBOOK_OWNER_ACTION_NEEDED: authorize a Page with content task and linked Professional account where required')
     scope=f'meta-selection:{attempt.id}'
     CredentialStore().put(db,db.info['owner_id'],scope,'selection',json.dumps({'platform':platform,'pages':candidates,
-        'requested':sorted(channel.SCOPES[platform]),'granted':sorted(granted),'expires':expiry.isoformat(),'expiry_source':expiry_source}))
+        'requested':sorted(requested_oauth_scopes(platform)),'granted':sorted(granted),'expires':expiry.isoformat(),'expiry_source':expiry_source}))
     request.session['meta_selection']=attempt.id
     db.commit()
     return RedirectResponse('/meta',303,headers={'Cache-Control':'no-store','Referrer-Policy':'no-referrer'})
