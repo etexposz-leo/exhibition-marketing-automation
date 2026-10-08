@@ -31,7 +31,8 @@ DEMO_VERIFICATION_CODE = "123456"
 
 def is_mock_mode() -> bool:
     """Check if running in mock SMS mode."""
-    return os.environ.get("SMS_MOCK_MODE", "true").lower() == "true"
+    from app.core.security import development_feature
+    return development_feature("SMS_MOCK_MODE")
 
 
 class RegisterRequest(BaseModel):
@@ -44,6 +45,7 @@ class RegisterRequest(BaseModel):
 class LoginRequest(BaseModel):
     email: str
     password: str
+    code: str = ''
 
 
 class SendSMSRequest(BaseModel):
@@ -57,6 +59,10 @@ class VerifySMSRequest(BaseModel):
 
 def get_current_user(request: Request, db: Session = Depends(get_db)) -> dict:
     """Get current user from session. Raises 401 if not authenticated."""
+    from app.core.cloud_runtime import enabled
+    if enabled():
+        from app.core.dependencies import get_current_user as verified_user
+        return verified_user(request, db)
     user_id = request.session.get("user_id")
     if not user_id:
         raise HTTPException(status_code=401, detail="Not authenticated")
@@ -70,6 +76,10 @@ def get_current_user(request: Request, db: Session = Depends(get_db)) -> dict:
 
 def require_sms_verified(request: Request, db: Session = Depends(get_db)) -> dict:
     """Require user to have verified their phone via SMS."""
+    from app.core.cloud_runtime import enabled
+    if enabled():
+        from app.core.dependencies import get_current_user as verified_user
+        return verified_user(request, db)
     user_id = request.session.get("user_id")
     if not user_id:
         raise HTTPException(status_code=401, detail="Not authenticated")
@@ -92,6 +102,8 @@ async def register(
     db: Session = Depends(get_db)
 ):
     """Register a new user."""
+    from app.core.cloud_runtime import enabled
+    if enabled():raise HTTPException(403,'Public registration disabled; ask the Owner for access')
     # Check if email already exists
     existing = get_user_by_email(db, reg_data.email)
     if existing:
@@ -142,6 +154,14 @@ async def login(
     db: Session = Depends(get_db)
 ):
     """Login user. Requires SMS verification after successful login."""
+    from app.core.cloud_runtime import enabled
+    if enabled():
+        from app.core.cloud_auth import login as cloud_login
+        return cloud_login(db, request, login_data.email, login_data.password, login_data.code)
+    local_guard=os.getenv('MARKETING_LOCAL_AUTH')=='true'
+    if local_guard:
+        from app.core import local_login_guard, module_access
+        attempt=local_login_guard.check(request,login_data.email)
     user = authenticate_user(db, login_data.email, login_data.password)
     
     if not user:
@@ -150,6 +170,12 @@ async def login(
             content={"success": False, "error": "Invalid email or password"}
         )
     
+    if local_guard:
+        profile=module_access.profile(db,user.id)
+        if profile['locked']:raise HTTPException(403,'Account locked')
+        local_login_guard.success(attempt)
+        request.session.clear();request.session['module_session_version']=profile['session_version']
+        profile['last_login']=datetime.utcnow().isoformat();module_access.save_profile(db,user.id,profile)
     # Check if phone is already verified for this user
     if user.phone_verified and user.sms_verified_at:
         # Skip SMS verification if already verified
@@ -194,6 +220,10 @@ async def login(
 @router.post("/logout")
 async def logout(request: Request):
     """Logout user."""
+    from app.core.cloud_runtime import enabled, base_url
+    expected=base_url() if enabled() else 'https://localhost:18421'
+    if os.getenv('MARKETING_LOCAL_AUTH')=='true' and request.headers.get('origin')!=expected:
+        raise HTTPException(403,'Same-origin logout required')
     request.session.clear()
     return {"success": True, "message": "Logged out successfully"}
 
@@ -246,6 +276,9 @@ async def send_sms_code(
             content={"success": False, "error": "User not found"}
         )
     
+    if not is_mock_mode():
+        raise HTTPException(status_code=403, detail="SMS delivery disabled in Phase 1")
+
     # Clean up old verification codes for this user
     db.query(SMSVerification).filter(
         SMSVerification.user_id == user_id
@@ -279,7 +312,8 @@ async def send_sms_code(
     if sms_provider.send_sms(sms_data.phone_number, message):
         return {
             "success": True,
-            "message": "Verification code sent",
+            "message": "MOCK verification only; no SMS sent",
+            "is_mock": True,
             "expires_in_minutes": SMS_CODE_EXPIRY_MINUTES
         }
     else:
@@ -337,8 +371,7 @@ async def verify_sms_code(
     
     # Verify code - in mock mode, also accept "123456" directly as a fallback
     code_valid = verify_code(verify_data.code, verification.code_hash)
-    if not code_valid and is_mock_mode() and verify_data.code == DEMO_VERIFICATION_CODE:
-        code_valid = True
+    # A stored, unexpired verification record is always required.
     
     if code_valid:
         # Mark as verified

@@ -1,3 +1,4 @@
+function executionMode() { return document.getElementById('executionMode').value; }
 // State
 let currentContent = {
     campaignId: null,
@@ -148,14 +149,14 @@ async function publishToSelected() {
         const response = await fetch('/api/publish/batch', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({platforms, content})
+            body: JSON.stringify({platforms, content, execution_mode: executionMode()})
         });
         
         const result = await response.json();
         displayPublishResults(result);
         
         if (result.successful > 0) {
-            showToast(`Published to ${result.successful} platform(s)!`);
+            showToast(`${result.execution_mode}: ${result.successful} simulated action(s); nothing published`);
         } else {
             showToast('All publishes failed', true);
         }
@@ -178,13 +179,13 @@ function displayPublishResults(result) {
     
     container.innerHTML = `
         <div style="margin-bottom: 0.75rem; font-size: 0.85rem; color: var(--text-secondary);">
-            ${result.successful}/${result.total} successful
+            ${result.execution_mode}: ${result.successful}/${result.total} simulations completed; no external publishing
         </div>
         ${result.results.map(r => `
             <div class="publish-result-item ${r.success ? 'success' : 'failed'}">
                 <span class="result-icon">${icons[r.platform] || '📱'}</span>
                 <div class="result-details">
-                    <div class="result-platform">${r.platform}</div>
+                    <div class="result-platform">${r.platform} — ${r.execution_mode}: ${r.status}</div>
                     ${r.success 
                         ? `<div class="result-id">${r.post_id}</div>`
                         : `<div class="result-error">${r.error}</div>`
@@ -415,12 +416,13 @@ async function handleSchedule(e) {
             body: JSON.stringify({
                 platform,
                 content,
+                execution_mode: executionMode(),
                 scheduled_at: new Date(`${date}T${time}`).toISOString()
             })
         });
         
         if (response.ok) {
-            showToast('Post scheduled successfully!');
+            showToast('Simulation scheduled; no real publication');
             e.target.reset();
             await loadScheduledPosts();
         }
@@ -457,7 +459,7 @@ function renderScheduledPosts() {
         <div class="scheduled-post-item">
             <div class="scheduled-post-header">
                 <span class="platform-badge ${post.platform}">${post.platform.replace('_', ' ')}</span>
-                <span class="status-badge ${post.status}">${post.status}</span>
+                <span class="status-badge ${post.status}">${post.execution_mode}: ${post.status}</span>
             </div>
             <p class="scheduled-post-content">${post.content.substring(0, 100)}...</p>
             <p class="scheduled-post-time">${formatDate(post.scheduled_at || post.published_at)}</p>
@@ -592,13 +594,13 @@ async function publishNow(platform) {
         const response = await fetch('/api/publish-now', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({platform, content})
+            body: JSON.stringify({platform, content, execution_mode: executionMode()})
         });
         
         const result = await response.json();
         
         if (result.success) {
-            showToast(`🎉 Published to ${platform}! (${result.post_id})`);
+            showToast(`${result.execution_mode}: ${result.status}; nothing published`);
             await loadScheduledPosts();
         } else {
             showToast(result.error || 'Failed to publish', true);

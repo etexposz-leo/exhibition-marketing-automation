@@ -1,0 +1,21 @@
+'use strict';
+const el=id=>document.getElementById(id);let draft=null,assets=[],cover=null;
+async function api(url,options={}){const r=await fetch('/api/channels'+url,options);if(!r.ok){let d=await r.json();throw Error(typeof d.detail==='string'?d.detail:'请求未通过验证');}return r.json();}
+const post=(url,body)=>api(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+function status(s){el('status').textContent=s;}
+function action(fn){return async()=>{try{await fn();}catch(e){status(e.message);}};}
+function reset(){draft=null;el('download').hidden=true;el('reviewed').checked=false;}
+function node(tag,text,parent){let n=document.createElement(tag);n.textContent=text;parent.append(n);return n;}
+async function refresh(){let data=await api('');el('cards').replaceChildren();for(let c of data.channels){let box=node('article','',el('cards'));node('h2',c.name,box);node('small',c.market,box);node('pre',['ACCOUNT_BOUND='+c.ACCOUNT_BOUND,'TOKEN_VALID='+c.TOKEN_VALID,'PUBLISH_SUPPORTED='+c.PUBLISH_SUPPORTED,'REAL_PUBLISH_ENABLED='+c.REAL_PUBLISH_ENABLED,'LAST_POST_STATUS='+c.LAST_POST_STATUS].join('\n'),box);for(let a of c.accounts)node('pre',JSON.stringify(a,null,2),box);if(c.manage){let a=node('a','管理现有连接',box);a.href=c.manage;}else{node('p',c.blocker,box);for(let [op,label] of [['connect','连接'],['reconnect','重新连接'],['disconnect','断开']])node('button',label,box).onclick=action(async()=>{let r=await post('/'+c.platform+'/'+op,{});status(r.account_was_bound===false?'未绑定，没有账户被更改':'操作完成');});let a=node('a','官方能力说明',box);a.href=c.docs;a.target='_blank';a.rel='noopener noreferrer';}}
+let selected=el('campaign').value;el('campaign').replaceChildren();for(let c of await api('/campaigns')){let o=node('option',c.name,el('campaign'));o.value=c.id;}if(selected)el('campaign').value=selected;}
+async function upload(file){let r=await api('/media',{method:'POST',headers:{'Content-Type':file.type},body:file});return r.id;}
+el('refresh').onclick=action(refresh);
+el('create').onclick=action(async()=>{let c=await post('/campaigns',{name:el('name').value});await refresh();el('campaign').value=c.id;reset();});
+el('channel').onchange=()=>{reset();assets=[];cover=null;el('preview').textContent='请加载该渠道版本或创建新版本。';};el('campaign').onchange=el('channel').onchange;
+el('load').onclick=action(async()=>{reset();let v=await api('/campaigns/'+el('campaign').value+'/'+el('channel').value);assets=[];cover=null;if(!v){status('此渠道暂无版本');return;}el('title').value=v.title;el('caption').value=v.caption;el('tags').value=v.hashtags.join(' ');el('when').value=v.recommended_publish_time||'';assets=v.asset_ids;cover=v.cover_id;draft=v;el('preview').textContent=JSON.stringify(v,null,2);showMedia(v);});
+el('save').onclick=action(async()=>{reset();if(el('files').files.length){assets=[];for(let f of el('files').files)assets.push(await upload(f));el('files').value='';}if(el('cover').files.length){cover=await upload(el('cover').files[0]);el('cover').value='';}draft=await post('/campaigns/'+el('campaign').value+'/'+el('channel').value,{title:el('title').value,caption:el('caption').value,hashtags:el('tags').value.split(/\s+/).filter(Boolean),asset_ids:assets,cover_id:cover,recommended_publish_time:el('when').value||null});el('preview').textContent=JSON.stringify(draft,null,2);showMedia(draft);status('已保存本地版本，未上传到平台。');});
+for(let id of ['title','caption','tags','when','files','cover'])el(id).addEventListener('input',reset);
+el('approve').onclick=action(async()=>{if(!draft)throw Error('请先保存并预览当前版本');await post('/drafts/'+draft.id+'/approve',{fingerprint:draft.fingerprint,media_reviewed:el('reviewed').checked});el('download').href='/api/channels/drafts/'+draft.id+'/package';el('download').hidden=false;status('已批准人工发布包；没有授权或执行自动发布。');});
+action(refresh)();
+
+function showMedia(v){el('mediaPreview').replaceChildren();for(let id of v.asset_ids){let a=node('a','打开本地媒体预览',el('mediaPreview'));a.href='/api/channels/media/'+id;a.target='_blank';a.rel='noopener';}if(v.cover_id){let img=document.createElement('img');img.src='/api/channels/media/'+v.cover_id;img.alt='封面预览';img.style.maxWidth='240px';el('mediaPreview').append(img);}}

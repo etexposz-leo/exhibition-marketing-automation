@@ -20,6 +20,8 @@ class GoogleBusinessService:
         }
         if self.access_token:
             headers["Authorization"] = f"Bearer {self.access_token}"
+        if self.api_key:
+            headers["X-Goog-Api-Key"] = self.api_key
         return headers
     
     async def create_local_post(self, content: str, location_id: Optional[str] = None) -> dict:
@@ -33,6 +35,7 @@ class GoogleBusinessService:
         Returns:
             dict with post ID and status
         """
+        raise ValueError("External provider execution disabled in Phase 1")
         if not self.api_key and not self.access_token:
             return {
                 "success": False,
@@ -67,7 +70,7 @@ class GoogleBusinessService:
                 else:
                     # Using API key
                     response = await client.post(
-                        f"{self.BASE_URL}/{target_location_id}/localPosts?key={self.api_key}",
+                        f"{self.BASE_URL}/{target_location_id}/localPosts",
                         headers=self._get_headers(),
                         json={
                             "languageCode": "en-US",
@@ -90,18 +93,19 @@ class GoogleBusinessService:
                 else:
                     return {
                         "success": False,
-                        "error": f"Google Business API error: {response.status_code} - {response.text}",
+                        "error": "Provider request rejected",
                         "post_id": None
                     }
         except Exception as e:
             return {
                 "success": False,
-                "error": str(e),
+                "error": "Provider operation failed",
                 "post_id": None
             }
     
     async def get_locations(self) -> dict:
         """Get list of Google Business locations."""
+        raise ValueError("External provider execution disabled in Phase 1")
         if not self.api_key and not self.access_token:
             return {"success": False, "error": "API not configured"}
         
@@ -114,7 +118,7 @@ class GoogleBusinessService:
                     )
                 else:
                     response = await client.get(
-                        f"{self.BASE_URL}/accounts/-/locations?key={self.api_key}",
+                        f"{self.BASE_URL}/accounts/-/locations",
                         headers=self._get_headers()
                     )
                 
@@ -126,13 +130,14 @@ class GoogleBusinessService:
                 else:
                     return {
                         "success": False,
-                        "error": response.text
+                        "error": "Provider request rejected"
                     }
         except Exception as e:
-            return {"success": False, "error": str(e)}
+            return {"success": False, "error": "Provider operation failed"}
     
     async def list_posts(self, location_id: Optional[str] = None) -> dict:
         """List local posts for a location."""
+        raise ValueError("External provider execution disabled in Phase 1")
         if not self.api_key and not self.access_token:
             return {"success": False, "error": "API not configured"}
         
@@ -149,7 +154,7 @@ class GoogleBusinessService:
                     )
                 else:
                     response = await client.get(
-                        f"{self.BASE_URL}/{target_location_id}/localPosts?key={self.api_key}",
+                        f"{self.BASE_URL}/{target_location_id}/localPosts",
                         headers=self._get_headers()
                     )
                 
@@ -161,10 +166,10 @@ class GoogleBusinessService:
                 else:
                     return {
                         "success": False,
-                        "error": response.text
+                        "error": "Provider request rejected"
                     }
         except Exception as e:
-            return {"success": False, "error": str(e)}
+            return {"success": False, "error": "Provider operation failed"}
     
     def is_configured(self) -> bool:
         """Check if Google Business API is configured."""

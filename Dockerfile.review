@@ -1,0 +1,15 @@
+FROM python:3.11-slim
+WORKDIR /app
+COPY requirements.txt constraints-phase2a.txt ./
+RUN pip install --no-cache-dir -r requirements.txt -c constraints-phase2a.txt
+COPY app ./app
+COPY templates ./templates
+COPY static ./static
+COPY vendor/invoice/invoice_downloader.py ./vendor/invoice/invoice_downloader.py
+COPY vendor/expocrawler/crawler/parser.py ./vendor/expocrawler/crawler/parser.py
+RUN useradd -m -u 1000 appuser && chown -R appuser:appuser /app
+USER appuser
+ENV ENVIRONMENT=production MARKETING_CLOUD_MODE=true HTTPS_ONLY=true PYTHONDONTWRITEBYTECODE=1
+EXPOSE 8000
+CMD ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000} --no-access-log"]
+

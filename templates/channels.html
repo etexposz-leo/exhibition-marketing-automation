@@ -1,0 +1,12 @@
+<!doctype html><html lang="zh"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>六渠道管理</title>
+<style>body{font:16px system-ui;background:#f3f6fa;color:#172d40;margin:32px auto;padding:20px;max-width:1150px}section,article{background:white;padding:22px;border-radius:12px;margin:12px 0}#cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:12px}label{display:block;margin:14px 0}input,select,textarea,button{font:inherit;padding:9px;max-width:95%}textarea{width:95%;min-height:130px}pre{white-space:pre-wrap;overflow-wrap:anywhere}button,a{margin-right:8px}small{display:block;color:#526579}</style>
+<h1>六渠道管理</h1><p>国际渠道：LinkedIn / Facebook / Instagram / TikTok。中国平台：小红书 / 抖音。账号和授权互不通用。</p>
+<p>新增渠道当前提供本地内容准备和人工发布包；连接资格未核实，不显示为已接通。此页面没有发布按钮。</p>
+<p><a href="/meta">Meta</a><a href="/linkedin">LinkedIn</a><button id="refresh">刷新状态</button></p><p id="status" role="status"></p><div id="cards"></div>
+<section><h2>一个 Campaign，独立内容版本</h2><label>选择 Campaign <select id="campaign"></select></label><label>新 Campaign 名称 <input id="name"></label><button id="create">创建 Campaign</button>
+<label>内容渠道 <select id="channel"><option value="tiktok">TikTok 国际版 · 竖视频</option><option value="xiaohongshu">小红书 · 标题/图文或视频</option><option value="douyin">抖音 · 竖视频</option></select></label><button id="load">加载最新版本</button>
+<label>标题 <input id="title" maxlength="200"></label><label>正文 / 视频说明 <textarea id="caption"></textarea></label><label>话题（空格分隔）<input id="tags"></label>
+<label>媒体文件（PNG/JPEG/MP4，每个最多16 MiB，保留上传顺序）<input id="files" type="file" multiple accept="image/png,image/jpeg,video/mp4"></label><label>可选封面 <input id="cover" type="file" accept="image/png,image/jpeg"></label>
+<small>TikTok/抖音选一个竖版 MP4；小红书选图集或单个视频。文件仅保存于本地加密存储。请自行预览确认比例、编解码和版权。</small><label>建议发布时间（含时区，如 2026-10-01T09:00:00-07:00；不会自动发送）<input id="when"></label>
+<button id="save">保存独立版本并预览</button><pre id="preview"></pre><div id="mediaPreview"></div><label><input id="reviewed" type="checkbox">已核对本版本文字、媒体和封面，仅批准导出人工发布包</label><button id="approve">批准人工发布包</button><a id="download" hidden>下载 ZIP</a></section>
+<script src="/static/js/channels.js"></script></html>

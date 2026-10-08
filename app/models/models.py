@@ -1,7 +1,34 @@
-from sqlalchemy import Column, Integer, String, Text, DateTime, Boolean, Enum as SQLEnum, Float, Date
+from sqlalchemy import UniqueConstraint, ForeignKey, Column, Integer, String, Text, DateTime, Boolean, Enum as SQLEnum, Float, Date
 from datetime import datetime
 from app.core.database import Base
 import enum
+
+
+class SalesBrief(Base):
+    __tablename__ = 'sales_briefs'
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey('users.id'), nullable=False, index=True)
+    campaign_id = Column(Integer, ForeignKey('campaigns.id'), nullable=False, index=True)
+    payload = Column(Text, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+
+class SalesCopy(Base):
+    __tablename__ = 'sales_copies'
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey('users.id'), nullable=False, index=True)
+    campaign_id = Column(Integer, ForeignKey('campaigns.id'), nullable=False, index=True)
+    brief_id = Column(Integer, ForeignKey('sales_briefs.id'), nullable=False)
+    optimized_content_id = Column(Integer, ForeignKey('optimized_contents.id'), nullable=True, index=True)
+    platform = Column(String(50), nullable=False)
+    content = Column(Text, nullable=False)
+    original_content = Column(Text, nullable=False)
+    evaluation = Column(Text, nullable=False)
+    fingerprint = Column(String(64), nullable=False)
+    status = Column(String(30), nullable=False, default='DRAFT')
+    generation_mode = Column(String(30), nullable=False)
+    review_log = Column(Text, nullable=False, default='[]')
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
 
 
 class SocialPlatform(enum.Enum):
@@ -60,6 +87,11 @@ class SocialAccount(Base):
     refresh_token = Column(Text, nullable=True)
     api_key = Column(Text, nullable=True)  # Alternative API key storage
     token_expires_at = Column(DateTime, nullable=True)
+    account_type = Column(String(30), nullable=True)
+    connection_status = Column(String(30), nullable=False, default='unverified', server_default='unverified')
+    scopes = Column(Text, nullable=True)
+    last_verified_at = Column(DateTime, nullable=True)
+    refresh_expires_at = Column(DateTime, nullable=True)
     is_active = Column(Boolean, default=True)
     is_mock_mode = Column(Boolean, default=True)  # Default to mock mode
     created_at = Column(DateTime, default=datetime.utcnow)
@@ -113,11 +145,20 @@ class OptimizedContent(Base):
 
 class ScheduledPost(Base):
     __tablename__ = "scheduled_posts"
+    __table_args__ = (UniqueConstraint('user_id', 'idempotency_key', name='uq_publish_owner_idempotency'),)
+    idempotency_key = Column(String(100), nullable=True)
+    request_fingerprint = Column(String(64), nullable=True)
+    source_timezone = Column(String(100), nullable=True)
+    last_attempt_at = Column(DateTime, nullable=True)
+    next_retry_at = Column(DateTime, nullable=True)
+    max_attempts = Column(Integer, nullable=False, default=3, server_default='3')
 
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, nullable=False, index=True)  # User who owns this post
     campaign_id = Column(Integer, nullable=True)
     optimized_content_id = Column(Integer, nullable=True)  # Reference to OptimizedContent
+    execution_mode = Column(String(10), nullable=False, default="TEST", server_default="TEST")
+    attempt_count = Column(Integer, nullable=False, default=0, server_default="0")
     platform = Column(String(50), nullable=False)  # linkedin, facebook, instagram, x, google_business
     social_account_id = Column(Integer, nullable=True)
     content = Column(Text, nullable=False)
@@ -135,6 +176,7 @@ class ScheduledPost(Base):
 class ContentTemplate(Base):
     """Content templates for different marketing styles."""
     __tablename__ = "content_templates"
+    user_id = Column(Integer, nullable=True, index=True)  # Legacy unowned templates remain hidden
 
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String(100), nullable=False)  # Template name
@@ -435,144 +477,30 @@ class SMSVerification(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
 
-# ==================== Marketing Ad Draft Models ====================
-
-
-class AdDraftStatus:
-    """Ad draft status constants."""
-    DRAFT = "draft"
-    PENDING_REVIEW = "pending_review"
-    APPROVED = "approved"
-    REJECTED = "rejected"
-    SCHEDULED = "scheduled"
-    PUBLISHED = "published"
-    FAILED = "failed"
-
-
-class AdDraft(Base):
-    """Ad campaign drafts for all platforms."""
-    __tablename__ = "ad_drafts"
-
-    id = Column(Integer, primary_key=True, index=True)
+class CredentialMetadata(Base):
+    __tablename__ = 'credential_metadata'
+    __table_args__ = (UniqueConstraint('user_id', 'scope', 'kind', name='uq_credential_owner_scope_kind'),)
+    id = Column(Integer, primary_key=True)
     user_id = Column(Integer, nullable=False, index=True)
-    
-    # Platform and type
-    platform = Column(String(50), nullable=False)
-    campaign_type = Column(String(50), nullable=False)
-    
-    # Content
-    title = Column(String(500), nullable=True)
-    body = Column(Text, nullable=True)
-    cta = Column(String(200), nullable=True)
-    image_url = Column(String(500), nullable=True)
-    
-    # Targeting
-    target_keywords = Column(Text, nullable=True)
-    target_audience = Column(Text, nullable=True)
-    target_locations = Column(Text, nullable=True)
-    target_age_range = Column(String(50), nullable=True)
-    
-    # Campaign details
-    landing_page = Column(String(500), nullable=True)
-    suggested_budget = Column(Float, default=0.0)
-    daily_budget = Column(Float, default=0.0)
-    schedule_time = Column(DateTime, nullable=True)
-    start_date = Column(Date, nullable=True)
-    end_date = Column(Date, nullable=True)
-    
-    # Status workflow
-    status = Column(String(30), default=AdDraftStatus.DRAFT)
-    
-    # Approval fields
-    created_by = Column(Integer, nullable=False)
-    approved_by = Column(Integer, nullable=True)
-    approved_at = Column(DateTime, nullable=True)
-    rejected_by = Column(Integer, nullable=True)
-    rejected_at = Column(DateTime, nullable=True)
-    rejection_reason = Column(Text, nullable=True)
-    
-    # Publication results
-    published_at = Column(DateTime, nullable=True)
-    platform_post_id = Column(String(200), nullable=True)
-    error_message = Column(Text, nullable=True)
-    
-    # Safety flags
-    safety_check_passed = Column(Boolean, default=False)
-    safety_warnings = Column(Text, nullable=True)
-    leo_approved = Column(Boolean, default=False)
-    has_budget_cap = Column(Boolean, default=False)
-    has_target_platform = Column(Boolean, default=False)
-    has_schedule = Column(Boolean, default=False)
-    passed_content_check = Column(Boolean, default=False)
-    
-    # SEO specific
-    seo_keywords = Column(Text, nullable=True)
-    seo_meta_description = Column(String(300), nullable=True)
-    seo_reading_time = Column(Integer, nullable=True)
-    
-    # Email specific
-    email_subject = Column(String(300), nullable=True)
-    email_recipients = Column(Text, nullable=True)
-    email_template_id = Column(Integer, nullable=True)
-    
-    # Versioning
-    version = Column(Integer, default=1)
-    parent_draft_id = Column(Integer, nullable=True)
-    
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    scope = Column(String(200), nullable=False)
+    kind = Column(String(50), nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
 
 
-class ApprovalQueue(Base):
-    """Approval queue for ad drafts."""
-    __tablename__ = "approval_queue"
-
-    id = Column(Integer, primary_key=True, index=True)
-    draft_id = Column(Integer, nullable=False, index=True)
+class CredentialSecret(Base):
+    __tablename__ = 'credential_secrets'
+    credential_id = Column(Integer, ForeignKey('credential_metadata.id'), primary_key=True)
     user_id = Column(Integer, nullable=False, index=True)
-    
-    # Status
-    status = Column(String(30), default="pending")
-    priority = Column(String(20), default="normal")
-    
-    # Approver info
-    reviewed_by = Column(Integer, nullable=True)
-    reviewed_at = Column(DateTime, nullable=True)
-    review_notes = Column(Text, nullable=True)
-    
-    # Safety check results
-    safety_checks_passed = Column(Boolean, default=False)
-    safety_issues = Column(Text, nullable=True)
-    
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    key_id = Column(String(100), nullable=False)
+    ciphertext = Column(Text, nullable=False)
 
 
-class PublishLog(Base):
-    """Log of all publish attempts (for audit trail)."""
-    __tablename__ = "publish_logs"
-
-    id = Column(Integer, primary_key=True, index=True)
-    draft_id = Column(Integer, nullable=False, index=True)
+class OAuthAttempt(Base):
+    __tablename__ = 'oauth_attempts'
+    id = Column(Integer, primary_key=True)
     user_id = Column(Integer, nullable=False, index=True)
-    
-    # Action
-    action = Column(String(50), nullable=False)
-    status = Column(String(30), nullable=False)
-    
-    # Details
-    platform = Column(String(50), nullable=True)
-    mock_mode = Column(Boolean, default=True)
-    request_data = Column(Text, nullable=True)
-    response_data = Column(Text, nullable=True)
-    error_message = Column(Text, nullable=True)
-    
-    # Cost tracking (always 0 in mock mode)
-    cost_cents = Column(Integer, default=0)
-    impressions = Column(Integer, default=0)
-    clicks = Column(Integer, default=0)
-    
-    ip_address = Column(String(50), nullable=True)
-    user_agent = Column(String(500), nullable=True)
-    
-    created_at = Column(DateTime, default=datetime.utcnow)
+    state_hash = Column(String(64), nullable=False, unique=True)
+    browser_hash = Column(String(64), nullable=False)
+    expires_at = Column(DateTime, nullable=False)
+    consumed = Column(Boolean, nullable=False, default=False)

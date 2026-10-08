@@ -170,7 +170,7 @@ class OpenAIRetrieverProvider(RetrieverProvider):
             return await mock.retrieve(query, chunks, top_k)
             
         except Exception as e:
-            logger.error(f"OpenAI retrieval error: {e}")
+            logger.error(f"OpenAI retrieval error: [details withheld]")
             mock = LocalMockRetrieverProvider()
             return await mock.retrieve(query, chunks, top_k)
     
@@ -193,7 +193,7 @@ class OpenAIRetrieverProvider(RetrieverProvider):
             )
             return response.choices[0].message.content.strip()
         except Exception as e:
-            logger.error(f"OpenAI generation error: {e}")
+            logger.error(f"OpenAI generation error: [details withheld]")
             mock = LocalMockRetrieverProvider()
             return await mock.generate_answer(question, context)
 
@@ -304,7 +304,7 @@ class DeepSeekRetrieverProvider(RetrieverProvider):
                     return await mock.generate_answer(question, context)
                     
         except Exception as e:
-            logger.error(f"DeepSeek generation error: {e}")
+            logger.error(f"DeepSeek generation error: [details withheld]")
             mock = LocalMockRetrieverProvider()
             return await mock.generate_answer(question, context)
 

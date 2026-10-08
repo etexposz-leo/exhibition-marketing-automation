@@ -43,8 +43,8 @@ class DocumentParser:
             logger.warning("pypdf not installed, using fallback")
             return DocumentParser._fallback_parse(content)
         except Exception as e:
-            logger.error(f"PDF parsing error: {e}")
-            raise ValueError(f"Failed to parse PDF: {str(e)}")
+            logger.error(f"PDF parsing error: [details withheld]")
+            raise ValueError(f"Failed to parse PDF: [details withheld]")
     
     @staticmethod
     def _parse_docx(content: bytes) -> str:
@@ -62,8 +62,8 @@ class DocumentParser:
             logger.warning("python-docx not installed")
             raise ValueError("DOCX parsing requires python-docx")
         except Exception as e:
-            logger.error(f"DOCX parsing error: {e}")
-            raise ValueError(f"Failed to parse DOCX: {str(e)}")
+            logger.error(f"DOCX parsing error: [details withheld]")
+            raise ValueError(f"Failed to parse DOCX: [details withheld]")
     
     @staticmethod
     def _parse_txt(content: bytes) -> str:
@@ -85,7 +85,7 @@ class DocumentParser:
             text = re.sub(r'[\x00-\x08\x0b\x0c\x0e-\x1f\x7f-\x9f]', '', text)
             return text
         except Exception as e:
-            logger.error(f"Fallback parsing error: {e}")
+            logger.error(f"Fallback parsing error: [details withheld]")
             raise ValueError("Failed to parse file content")
     
     @staticmethod

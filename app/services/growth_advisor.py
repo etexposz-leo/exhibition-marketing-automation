@@ -60,7 +60,7 @@ class GrowthAdvisor:
             results["google_seo"] = await self.google_seo.check_rankings(db, user_id)
             logger.info(f"Google SEO: {len(results['google_seo'])} keywords checked")
         except Exception as e:
-            logger.error(f"Google SEO check failed: {e}")
+            logger.error(f"Google SEO check failed: [details withheld]")
             results["google_seo"] = []
         
         # 2. Check ChatGPT visibility
@@ -68,7 +68,7 @@ class GrowthAdvisor:
             results["chatgpt"] = await self.chatgpt.check_visibility(db, user_id)
             logger.info(f"ChatGPT: {len(results['chatgpt'])} keywords checked")
         except Exception as e:
-            logger.error(f"ChatGPT visibility check failed: {e}")
+            logger.error(f"ChatGPT visibility check failed: [details withheld]")
             results["chatgpt"] = []
         
         # 3. Check DeepSeek visibility
@@ -76,7 +76,7 @@ class GrowthAdvisor:
             results["deepseek"] = await self.deepseek.check_visibility(db, user_id)
             logger.info(f"DeepSeek: {len(results['deepseek'])} keywords checked")
         except Exception as e:
-            logger.error(f"DeepSeek visibility check failed: {e}")
+            logger.error(f"DeepSeek visibility check failed: [details withheld]")
             results["deepseek"] = []
         
         # 4. Check Perplexity visibility
@@ -84,7 +84,7 @@ class GrowthAdvisor:
             results["perplexity"] = await self.perplexity.check_visibility(db, user_id)
             logger.info(f"Perplexity: {len(results['perplexity'])} keywords checked")
         except Exception as e:
-            logger.error(f"Perplexity visibility check failed: {e}")
+            logger.error(f"Perplexity visibility check failed: [details withheld]")
             results["perplexity"] = []
         
         # 5. Generate recommendations
@@ -92,7 +92,7 @@ class GrowthAdvisor:
             results["recommendations"] = await self._generate_recommendations(db, user_id, results)
             logger.info(f"Generated {len(results['recommendations'])} recommendations")
         except Exception as e:
-            logger.error(f"Recommendation generation failed: {e}")
+            logger.error(f"Recommendation generation failed: [details withheld]")
             results["recommendations"] = []
         
         # 5. Generate daily report
@@ -100,7 +100,7 @@ class GrowthAdvisor:
             results["report"] = await self._generate_daily_report(db, user_id, results)
             logger.info("Daily report generated")
         except Exception as e:
-            logger.error(f"Daily report generation failed: {e}")
+            logger.error(f"Daily report generation failed: [details withheld]")
             results["report"] = None
         
         return results
@@ -709,7 +709,7 @@ async def run_daily_growth_check():
                 await advisor.run_full_check(db, user.id)
                 logger.info(f"Growth check completed for user {user.id}")
             except Exception as e:
-                logger.error(f"Growth check failed for user {user.id}: {e}")
+                logger.error(f"Growth check failed for user {user.id}: [details withheld]")
         
         logger.info(f"Daily growth check completed for {len(users)} users")
     finally:

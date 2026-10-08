@@ -14,13 +14,12 @@ class FacebookService:
     
     def _get_headers(self) -> dict:
         return {
-            "Content-Type": "application/json"
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {self.access_token}"
         }
     
     def _get_params(self) -> dict:
-        return {
-            "access_token": self.access_token
-        }
+        return {}
     
     async def post_to_page(self, content: str, page_id: Optional[str] = None) -> dict:
         """
@@ -33,6 +32,7 @@ class FacebookService:
         Returns:
             dict with post ID and status
         """
+        raise ValueError("External provider execution disabled in Phase 1")
         if not self.access_token:
             return {
                 "success": False,
@@ -53,7 +53,6 @@ class FacebookService:
                 response = await client.post(
                     f"{self.BASE_URL}/{target_page_id}/feed",
                     headers=self._get_headers(),
-                    params=self._get_params(),
                     json={
                         "message": content,
                         "published": "true"
@@ -72,13 +71,13 @@ class FacebookService:
                 else:
                     return {
                         "success": False,
-                        "error": f"Facebook API error: {response.status_code} - {response.text}",
+                        "error": "Provider request rejected",
                         "post_id": None
                     }
         except Exception as e:
             return {
                 "success": False,
-                "error": str(e),
+                "error": "Provider operation failed",
                 "post_id": None
             }
     
@@ -94,6 +93,7 @@ class FacebookService:
         Returns:
             dict with post ID and status
         """
+        raise ValueError("External provider execution disabled in Phase 1")
         if not self.access_token:
             return {
                 "success": False,
@@ -114,7 +114,6 @@ class FacebookService:
                 response = await client.post(
                     f"{self.BASE_URL}/{target_page_id}/feed",
                     headers=self._get_headers(),
-                    params=self._get_params(),
                     json={
                         "message": content,
                         "link": link_url,
@@ -134,18 +133,19 @@ class FacebookService:
                 else:
                     return {
                         "success": False,
-                        "error": f"Facebook API error: {response.status_code} - {response.text}",
+                        "error": "Provider request rejected",
                         "post_id": None
                     }
         except Exception as e:
             return {
                 "success": False,
-                "error": str(e),
+                "error": "Provider operation failed",
                 "post_id": None
             }
     
     async def get_page_info(self, page_id: Optional[str] = None) -> dict:
         """Get Facebook Page information."""
+        raise ValueError("External provider execution disabled in Phase 1")
         if not self.access_token:
             return {"success": False, "error": "Not authenticated"}
         
@@ -157,7 +157,7 @@ class FacebookService:
             async with httpx.AsyncClient(timeout=30.0) as client:
                 response = await client.get(
                     f"{self.BASE_URL}/{target_page_id}",
-                    params=self._get_params()
+                    headers=self._get_headers()
                 )
                 
                 if response.status_code == 200:
@@ -168,10 +168,10 @@ class FacebookService:
                 else:
                     return {
                         "success": False,
-                        "error": response.text
+                        "error": "Provider request rejected"
                     }
         except Exception as e:
-            return {"success": False, "error": str(e)}
+            return {"success": False, "error": "Provider operation failed"}
     
     def is_configured(self) -> bool:
         """Check if Facebook API is configured."""

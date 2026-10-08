@@ -23,11 +23,8 @@ os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 
 def require_sms_verified(request: Request) -> int:
-    """Require user to be authenticated and SMS verified. Returns user_id."""
-    user_id = require_sms_verified(request)
-    if not request.session.get("sms_verified"):
-        raise HTTPException(status_code=403, detail="Phone verification required")
-    return user_id
+    from app.core.dependencies import require_verified_session
+    return require_verified_session(request)
 
 
 # ==================== Document Endpoints ====================
@@ -143,7 +140,7 @@ async def upload_document(
     except Exception as e:
         document.status = "error"
         db.commit()
-        raise HTTPException(status_code=500, detail=f"Failed to process document: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to process document: [details withheld]")
     
     return {
         "success": True,

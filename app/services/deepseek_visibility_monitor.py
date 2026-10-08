@@ -191,7 +191,7 @@ class DeepSeekVisibilityMonitor:
                 return self._generate_mock_visibility_for_keyword(keyword)
             
         except Exception as e:
-            logger.error(f"Error querying DeepSeek: {e}")
+            logger.error(f"Error querying DeepSeek: [details withheld]")
             # Fall back to mock data
             return self._generate_mock_visibility_for_keyword(keyword)
     

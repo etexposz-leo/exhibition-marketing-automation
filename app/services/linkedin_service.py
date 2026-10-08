@@ -32,6 +32,7 @@ class LinkedInService:
         Returns:
             dict with post ID and status
         """
+        raise ValueError("External provider execution disabled in Phase 1")
         if not self.access_token:
             return {
                 "success": False,
@@ -75,18 +76,19 @@ class LinkedInService:
                 else:
                     return {
                         "success": False,
-                        "error": f"LinkedIn API error: {response.status_code} - {response.text}",
+                        "error": "Provider request rejected",
                         "post_id": None
                     }
         except Exception as e:
             return {
                 "success": False,
-                "error": str(e),
+                "error": "Provider operation failed",
                 "post_id": None
             }
     
     async def get_profile(self, profile_id: str = "me") -> dict:
         """Get LinkedIn profile information."""
+        raise ValueError("External provider execution disabled in Phase 1")
         if not self.access_token:
             return {"success": False, "error": "Not authenticated"}
         
@@ -105,10 +107,10 @@ class LinkedInService:
                 else:
                     return {
                         "success": False,
-                        "error": response.text
+                        "error": "Provider request rejected"
                     }
         except Exception as e:
-            return {"success": False, "error": str(e)}
+            return {"success": False, "error": "Provider operation failed"}
     
     def is_configured(self) -> bool:
         """Check if LinkedIn API is configured."""

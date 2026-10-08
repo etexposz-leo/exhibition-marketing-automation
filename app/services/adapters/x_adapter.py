@@ -52,10 +52,9 @@ class XTwitterAdapter(BasePlatformAdapter):
     
     async def publish(self, content: str, **kwargs) -> PublishResult:
         """Publish a tweet to X."""
+        raise ValueError("External provider execution disabled in Phase 1")
         if not self.is_configured():
-            from app.services.platform_adapter import MockPlatformAdapter
-            mock = MockPlatformAdapter(PlatformType.X_TWITTER)
-            return await mock.publish(content, **kwargs)
+            raise ValueError("Adapter credentials unavailable")
         
         # Validate character limit for X
         if len(content) > 280:
@@ -75,6 +74,7 @@ class XTwitterAdapter(BasePlatformAdapter):
     
     async def _post_tweet(self, text: str) -> PublishResult:
         """Post a tweet using Twitter API v2."""
+        raise ValueError("External provider execution disabled in Phase 1")
         try:
             async with httpx.AsyncClient(timeout=30.0) as client:
                 # Using OAuth2 with Bearer Token (App-only)
@@ -98,13 +98,13 @@ class XTwitterAdapter(BasePlatformAdapter):
                     return PublishResult(
                         success=False,
                         platform=self.config.platform.value,
-                        error=f"X API error: {response.status_code} - {response.text}"
+                        error="Provider request rejected"
                     )
         except Exception as e:
             return PublishResult(
                 success=False,
                 platform=self.config.platform.value,
-                error=str(e)
+                error="Provider operation failed"
             )
     
     def _timestamp(self) -> str:

@@ -1,0 +1,10 @@
+<!doctype html><html lang="zh"><meta charset="utf-8"><title>Meta 渠道连接</title>
+<style>body{font:16px system-ui;max-width:850px;margin:40px auto;padding:20px;background:#f5f7fa;color:#182633}section{background:white;border:1px solid #ddd;padding:22px;margin:18px 0;border-radius:12px}input,button{padding:10px;margin:6px;max-width:95%}pre{white-space:pre-wrap}button{cursor:pointer}label{display:block}</style>
+<nav aria-label="Workspace"><a href="/marketing">返回 Marketing workspace</a></nav><h1>Facebook · Instagram 独立渠道</h1><p>连接与发布分开授权。当前所有真实发布开关关闭。本页不上传图片、不发布内容。</p>
+<p><a href="/linkedin">保留的 LinkedIn 连接</a> · <a href="/channels">六渠道管理与内容版本</a></p>
+<section><h2>Meta App 本地安全录入</h2><p>仅在本机 HTTPS 页面输入；凭据加密保存，不要粘贴到聊天。</p>
+<p>Meta App 中配置回调：<code>https://localhost:18421/api/meta/oauth/callback</code></p>
+<form id="config"><label>App ID <input id="appId" autocomplete="off" required></label><label>App Secret <input id="appSecret" type="password" autocomplete="off" required></label><label>Graph API 版本 <input id="version" value="v26.0" required></label><button>保存本地加密配置</button></form></section>
+<section><h2>分别连接账户</h2><button data-platform="facebook">连接 Facebook Page</button><button data-platform="instagram">连接 Instagram Professional</button><p>Instagram 需关联 Facebook Page。授权后必须明确选择目标，不会默认选取第一个账户。</p><div id="choices"></div></section>
+<section><h2>已连接账户及开关</h2><div id="accounts"></div><button id="refresh">刷新状态</button></section><p id="status" role="status"></p>
+<script src="/static/js/meta.js"></script></html>

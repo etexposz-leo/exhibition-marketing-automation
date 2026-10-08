@@ -3,7 +3,7 @@ SMS Service for phone verification.
 Supports Twilio and Mock providers.
 """
 import os
-import random
+import secrets
 import hashlib
 from datetime import datetime, timedelta
 from typing import Optional
@@ -25,8 +25,8 @@ class MockSMSProvider(SMSProvider):
     def send_sms(self, phone_number: str, message: str) -> bool:
         """Log the SMS instead of sending (mock mode)."""
         # In production, never log actual SMS content
-        print(f"[MOCK SMS] To: {phone_number}")
-        print(f"[MOCK SMS] Message: {message}")
+        print("[MOCK SMS] No message sent")
+        # Never log OTPs or phone numbers.
         return True
 
 
@@ -40,6 +40,7 @@ class TwilioSMSProvider(SMSProvider):
     
     def send_sms(self, phone_number: str, message: str) -> bool:
         """Send SMS via Twilio."""
+        return False  # Phase 1: external delivery prohibited
         try:
             from twilio.rest import Client
             
@@ -51,21 +52,21 @@ class TwilioSMSProvider(SMSProvider):
             )
             return message.sid is not None
         except Exception as e:
-            print(f"Twilio error: {e}")
+            print("SMS provider operation failed")
             return False
 
 
 def get_sms_provider() -> SMSProvider:
-    """Get the configured SMS provider based on environment."""
-    if os.environ.get("SMS_MOCK_MODE", "true").lower() == "true":
+    from app.core.security import development_feature
+    if development_feature('SMS_MOCK_MODE'):
         return MockSMSProvider()
-    else:
-        return TwilioSMSProvider()
+    raise ValueError('SMS delivery disabled in Phase 1')
+
 
 
 def generate_verification_code() -> str:
     """Generate a 6-digit verification code."""
-    return str(random.randint(100000, 999999))
+    return str(secrets.randbelow(900000) + 100000)
 
 
 def hash_code(code: str) -> str:

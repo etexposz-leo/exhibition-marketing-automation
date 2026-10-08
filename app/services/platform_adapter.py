@@ -14,6 +14,12 @@ import string
 from datetime import datetime
 
 
+class ExecutionMode(str, Enum):
+    MOCK = "MOCK"
+    TEST = "TEST"
+    REAL = "REAL"
+
+
 class PlatformType(Enum):
     LINKEDIN = "linkedin"
     FACEBOOK = "facebook"
@@ -33,9 +39,13 @@ class PublishResult:
     is_mock: bool = False
     published_at: Optional[str] = None
     metadata: Optional[Dict[str, Any]] = None
+    execution_mode: str = "REAL"
 
     def to_dict(self) -> Dict[str, Any]:
         return {
+            "execution_mode": self.execution_mode,
+            "simulated": self.execution_mode != "REAL",
+            "is_test": self.execution_mode == "TEST",
             "success": self.success,
             "platform": self.platform,
             "post_id": self.post_id,
@@ -43,7 +53,7 @@ class PublishResult:
             "error": self.error,
             "is_mock": self.is_mock,
             "published_at": self.published_at,
-            **({} if not self.metadata else self.metadata)
+            "metadata": self.metadata or {}
         }
 
 
@@ -87,23 +97,12 @@ class BasePlatformAdapter(ABC):
         pass
     
     def publish_sync(self, content: str, **kwargs) -> PublishResult:
-        """
-        Synchronous publish - for scheduler use.
-        Default implementation wraps async publish.
-        """
         import asyncio
-        
         try:
-            loop = asyncio.get_event_loop()
-            if loop.is_running():
-                # Create a new loop if we're in an async context
-                result = loop.run_until_complete(self.publish(content, **kwargs))
-            else:
-                result = loop.run_until_complete(self.publish(content, **kwargs))
-            return result
+            asyncio.get_running_loop()
         except RuntimeError:
-            # No event loop, create one
             return asyncio.run(self.publish(content, **kwargs))
+        raise RuntimeError('Use await adapter.publish inside an async context')
     
     @abstractmethod
     def is_configured(self) -> bool:
@@ -205,7 +204,7 @@ class MockPlatformAdapter(BasePlatformAdapter):
                 success=False,
                 platform=self.config.platform.value,
                 error=error,
-                is_mock=True
+                is_mock=True, execution_mode="MOCK"
             )
         
         post_id = self.generate_mock_id()
@@ -213,9 +212,9 @@ class MockPlatformAdapter(BasePlatformAdapter):
             success=True,
             platform=self.config.platform.value,
             post_id=post_id,
-            url=self._get_mock_url(post_id),
-            is_mock=True,
-            published_at=datetime.utcnow().isoformat(),
+            url=None,
+            is_mock=True, execution_mode="MOCK",
+            published_at=None,
             metadata={
                 "content_preview": content[:100] + "..." if len(content) > 100 else content,
                 "character_count": len(content),
@@ -226,6 +225,15 @@ class MockPlatformAdapter(BasePlatformAdapter):
     def is_configured(self) -> bool:
         """Mock is always "configured" since it doesn't need credentials."""
         return True
+
+
+class TestPlatformAdapter(MockPlatformAdapter):
+    """Local validation only; never tests provider connectivity or sends content."""
+    def _do_publish(self, content: str, **kwargs):
+        valid, error = self.validate_content(content)
+        return PublishResult(success=valid, platform=self.config.platform.value,
+                             error=error, is_mock=False, execution_mode='TEST',
+                             metadata={'provider_contacted': False})
 
 
 class PlatformRegistry:
@@ -240,34 +248,46 @@ class PlatformRegistry:
     @classmethod
     def register(cls, platform: PlatformType, adapter: BasePlatformAdapter):
         """Register a platform adapter."""
+        if isinstance(adapter, MockPlatformAdapter) or adapter.config.platform != platform:
+            raise ValueError("Invalid REAL adapter registration")
         cls._adapters[platform] = adapter
     
     @classmethod
-    def get_adapter(cls, platform: PlatformType, use_mock: bool = True) -> BasePlatformAdapter:
-        """
-        Get an adapter for a platform.
-        
-        Args:
-            platform: The platform type
-            use_mock: If True, use mock when real API is not configured
-        """
-        # If real adapter exists and is configured, use it
-        if platform in cls._adapters:
+    def get_adapter(cls, platform: PlatformType, use_mock=None, *, execution_mode=None) -> BasePlatformAdapter:
+        if execution_mode is None:
+            if use_mock is None:
+                raise ValueError('Explicit execution mode required')
+            execution_mode = ExecutionMode.MOCK if use_mock else ExecutionMode.REAL
+        mode = ExecutionMode(execution_mode)
+        if mode == ExecutionMode.REAL:
+            if platform not in cls._adapters:
+                raise ValueError('REAL adapter is not registered')
+            if not cls._adapters[platform].is_configured():
+                raise ValueError('REAL adapter is not configured')
+            from app.services.linkedin_channel import LinkedInAdapter
+            from app.services.meta_channel import MetaAdapter
             adapter = cls._adapters[platform]
-            if adapter.is_configured():
-                return adapter
-        
-        # Use mock adapter
-        if platform not in cls._mock_adapters:
-            cls._mock_adapters[platform] = MockPlatformAdapter(platform)
-        return cls._mock_adapters[platform]
+            if platform == PlatformType.LINKEDIN:
+                if not isinstance(adapter, LinkedInAdapter): raise ValueError('REAL adapter disabled')
+            elif platform in {PlatformType.FACEBOOK, PlatformType.INSTAGRAM}:
+                if not isinstance(adapter, MetaAdapter) or adapter.platform != platform.value:
+                    raise ValueError('REAL adapter disabled')
+            else:
+                raise ValueError('REAL channel disabled')
+            return cls._adapters[platform]
+        if mode == ExecutionMode.TEST:
+            return TestPlatformAdapter(platform)
+        from app.core.security import development_feature
+        if not development_feature('ENABLE_MOCK_PUBLISHING'):
+            raise ValueError('MOCK publishing requires explicit development configuration')
+        return cls._mock_adapters.setdefault(platform, MockPlatformAdapter(platform))
     
     @classmethod
     def get_all_platforms(cls) -> List[PlatformConfig]:
         """Get all available platform configurations."""
         configs = []
         for platform in PlatformType:
-            adapter = cls.get_adapter(platform)
+            adapter = cls.get_adapter(platform, execution_mode=ExecutionMode.TEST)
             configs.append(adapter.config)
         return configs
     
@@ -286,7 +306,7 @@ class PlatformRegistry:
         """Publish content to multiple platforms."""
         results = []
         for platform in platforms:
-            adapter = cls.get_adapter(platform)
+            adapter = cls.get_adapter(platform, execution_mode=kwargs.get("execution_mode"))
             result = await adapter.publish(content, **kwargs)
             results.append(result)
         return results
@@ -297,11 +317,11 @@ for platform in PlatformType:
     PlatformRegistry._mock_adapters[platform] = MockPlatformAdapter(platform)
 
 
-def get_platform_adapter(platform: str, use_mock: bool = True) -> BasePlatformAdapter:
+def get_platform_adapter(platform: str, use_mock=None, *, execution_mode=None) -> BasePlatformAdapter:
     """Convenience function to get a platform adapter by name."""
     try:
         platform_type = PlatformType(platform.lower())
-        return PlatformRegistry.get_adapter(platform_type, use_mock)
+        return PlatformRegistry.get_adapter(platform_type, use_mock, execution_mode=execution_mode)
     except ValueError:
         raise ValueError(f"Unknown platform: {platform}. Valid platforms: {[p.value for p in PlatformType]}")
 
@@ -310,7 +330,7 @@ def get_all_platform_configs() -> List[Dict[str, Any]]:
     """Get configuration for all platforms (for UI)."""
     configs = []
     for platform in PlatformType:
-        adapter = PlatformRegistry.get_adapter(platform)
+        adapter = PlatformRegistry.get_adapter(platform, execution_mode=ExecutionMode.TEST)
         config = adapter.config
         configs.append({
             "id": config.platform.value,
@@ -319,7 +339,7 @@ def get_all_platform_configs() -> List[Dict[str, Any]]:
             "color": config.color,
             "character_limit": config.character_limit,
             "supports_images": config.supports_images,
-            "is_configured": adapter.is_configured(),
-            "is_mock": type(adapter) == MockPlatformAdapter
+            "is_configured": platform in PlatformRegistry._adapters and PlatformRegistry._adapters[platform].is_configured(),
+            "is_mock": False, "real_enabled": False, "execution_mode": "TEST"
         })
     return configs

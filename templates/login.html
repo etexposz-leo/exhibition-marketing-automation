@@ -181,12 +181,7 @@
             <button type="submit" class="btn" id="loginBtn">Sign In</button>
         </form>
         
-        <div class="demo-box">
-            <h3>🎯 Demo Account</h3>
-            <code>Email: demo@example.com</code>
-            <code>Password: demo123</code>
-            <button type="button" class="btn demo-btn" onclick="fillDemo()">Use Demo Account</button>
-        </div>
+        <p>Development demo accounts require explicit local configuration.</p>
         
         <div class="footer-link">
             Don't have an account? <a href="/register">Sign up</a>
@@ -201,10 +196,7 @@
             msg.style.display = 'block';
         }
         
-        function fillDemo() {
-            document.getElementById('email').value = 'demo@example.com';
-            document.getElementById('password').value = 'demo123';
-        }
+        
         
         document.getElementById('loginForm').addEventListener('submit', async (e) => {
             e.preventDefault();

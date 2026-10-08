@@ -45,10 +45,9 @@ class InstagramAdapter(BasePlatformAdapter):
     
     async def publish(self, content: str, **kwargs) -> PublishResult:
         """Publish a post to Instagram."""
+        raise ValueError("External provider execution disabled in Phase 1")
         if not self.is_configured():
-            from app.services.platform_adapter import MockPlatformAdapter
-            mock = MockPlatformAdapter(PlatformType.INSTAGRAM)
-            return await mock.publish(content, **kwargs)
+            raise ValueError("Adapter credentials unavailable")
         
         image_url = kwargs.get("image_url")
         
@@ -58,11 +57,13 @@ class InstagramAdapter(BasePlatformAdapter):
             return await self._publish_container(content)
     
     async def _publish_container(self, caption: str) -> PublishResult:
+        raise ValueError("External provider execution disabled in Phase 1")
         try:
             async with httpx.AsyncClient(timeout=30.0) as client:
                 response = await client.post(
                     f"{self.BASE_URL}/{self.account_id}/media",
-                    params={"caption": caption, "access_token": self.access_token}
+                    headers={"Authorization": f"Bearer {self.access_token}"},
+                    data={"caption": caption}
                 )
                 
                 if response.status_code == 200:
@@ -72,17 +73,19 @@ class InstagramAdapter(BasePlatformAdapter):
                     return PublishResult(
                         success=False,
                         platform=self.config.platform.value,
-                        error=f"Instagram API error: {response.text}"
+                        error="Provider request rejected"
                     )
         except Exception as e:
-            return PublishResult(success=False, platform=self.config.platform.value, error=str(e))
+            return PublishResult(success=False, platform=self.config.platform.value, error="Provider operation failed")
     
     async def _publish_container_final(self, container_id: str) -> PublishResult:
+        raise ValueError("External provider execution disabled in Phase 1")
         try:
             async with httpx.AsyncClient(timeout=30.0) as client:
                 response = await client.post(
                     f"{self.BASE_URL}/{self.account_id}/media_publish",
-                    params={"creation_id": container_id, "access_token": self.access_token}
+                    headers={"Authorization": f"Bearer {self.access_token}"},
+                    data={"creation_id": container_id}
                 )
                 
                 if response.status_code == 200:
@@ -91,23 +94,25 @@ class InstagramAdapter(BasePlatformAdapter):
                         success=True, platform=self.config.platform.value, post_id=post_id,
                         url=f"https://www.instagram.com/p/{post_id}", published_at=self._timestamp()
                     )
-                return PublishResult(success=False, platform=self.config.platform.value, error=response.text)
+                return PublishResult(success=False, platform=self.config.platform.value, error="Provider request rejected")
         except Exception as e:
-            return PublishResult(success=False, platform=self.config.platform.value, error=str(e))
+            return PublishResult(success=False, platform=self.config.platform.value, error="Provider operation failed")
     
     async def _publish_photo(self, caption: str, image_url: str) -> PublishResult:
+        raise ValueError("External provider execution disabled in Phase 1")
         try:
             async with httpx.AsyncClient(timeout=30.0) as client:
                 response = await client.post(
                     f"{self.BASE_URL}/{self.account_id}/media",
-                    params={"image_url": image_url, "caption": caption, "access_token": self.access_token}
+                    headers={"Authorization": f"Bearer {self.access_token}"},
+                    data={"image_url": image_url, "caption": caption}
                 )
                 if response.status_code == 200:
                     container_id = response.json().get("id")
                     return await self._publish_container_final(container_id)
-                return PublishResult(success=False, platform=self.config.platform.value, error=response.text)
+                return PublishResult(success=False, platform=self.config.platform.value, error="Provider request rejected")
         except Exception as e:
-            return PublishResult(success=False, platform=self.config.platform.value, error=str(e))
+            return PublishResult(success=False, platform=self.config.platform.value, error="Provider operation failed")
     
     def _timestamp(self) -> str:
         from datetime import datetime

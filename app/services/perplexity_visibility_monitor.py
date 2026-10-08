@@ -191,7 +191,7 @@ Just give me the factual answer, no preamble."""
                 return self._generate_mock_visibility_for_keyword(keyword)
             
         except Exception as e:
-            logger.error(f"Error querying Perplexity: {e}")
+            logger.error(f"Error querying Perplexity: [details withheld]")
             # Fall back to mock data
             return self._generate_mock_visibility_for_keyword(keyword)
     

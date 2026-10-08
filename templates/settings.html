@@ -329,11 +329,11 @@
                         const p = data.platforms[platform];
                         const statusEl = document.getElementById(`${platform}-status`);
                         if (statusEl) {
-                            statusEl.textContent = p.mock_mode ? 'Mock Mode' : 'Configured';
-                            statusEl.className = 'status-badge ' + (p.mock_mode ? 'mock' : 'configured');
+                            statusEl.textContent = p.is_mock_mode ? 'MOCK only' : 'Stored; REAL disabled';
+                            statusEl.className = 'status-badge ' + (p.is_mock_mode ? 'mock' : 'configured');
                         }
                         const mockCheckbox = document.getElementById(`${platform}-mock`);
-                        if (mockCheckbox) mockCheckbox.checked = p.mock_mode;
+                        if (mockCheckbox) mockCheckbox.checked = p.is_mock_mode;
                     });
                 }
             } catch (error) {
@@ -357,7 +357,7 @@
                 statusEl.textContent = 'Mock Mode';
                 statusEl.className = 'status-badge mock';
             } else {
-                statusEl.textContent = 'Configured';
+                statusEl.textContent = 'Stored; connection not verified';
                 statusEl.className = 'status-badge configured';
             }
         }
@@ -382,7 +382,7 @@
                     showToast(`${service} API key saved`, 'success');
                     document.getElementById(`${service}-key`).value = '';
                     const statusEl = document.getElementById(`${service}-status`);
-                    statusEl.textContent = 'Configured';
+                    statusEl.textContent = 'Stored; connection not verified';
                     statusEl.className = 'status-badge configured';
                 } else {
                     showToast('Failed to save API key', 'error');
@@ -412,7 +412,7 @@
                 if (response.ok) {
                     showToast(`${platform} settings saved`, 'success');
                     const statusEl = document.getElementById(`${platform}-status`);
-                    statusEl.textContent = mockMode ? 'Mock Mode' : 'Configured';
+                    statusEl.textContent = mockMode ? 'MOCK only' : 'Stored; REAL disabled';
                     statusEl.className = 'status-badge ' + (mockMode ? 'mock' : 'configured');
                 } else {
                     showToast('Failed to save settings', 'error');
@@ -425,8 +425,14 @@
         // Test API connection
         async function testApi(service) {
             showToast(`Testing ${service} connection...`, 'info');
-            // Implement API test
-            setTimeout(() => showToast(`${service} connection successful!`, 'success'), 1000);
+            try {
+                const response = await fetch('/api/settings/test-connection', {
+                    method: 'POST', headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({service, execution_mode: 'TEST'})
+                });
+                const result = await response.json();
+                showToast(response.ok ? result.message : 'Configuration check failed', 'info');
+            } catch (_) { showToast('Configuration check failed', 'error'); }
         }
 
         // Toast notification

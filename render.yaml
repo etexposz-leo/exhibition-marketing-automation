@@ -6,24 +6,27 @@ services:
     name: exhibition-marketing-automation
     env: python
     region: oregon
-    plan: free
+    plan: starter
     buildCommand: |
-      pip install -r requirements.txt
-      mkdir -p data
-    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
-    healthCheckPath: /api/auth/check
+      pip install -r requirements.txt -c constraints-phase2a.txt
+    startCommand: uvicorn app.cloud_entry:create_app --factory --host 0.0.0.0 --port $PORT --no-access-log
+    healthCheckPath: /health/live
     disk:
       name: data
-      mountPath: /app/data
+      mountPath: /opt/render/project/src/data
       sizeGB: 1
     envVars:
       - key: ENVIRONMENT
         value: production
-      - key: SECRET_KEY
-        generateValue: true
-      - key: DATABASE_URL
-        value: sqlite:///./data/marketing.db
+      # Provisioned by the Owner console, never committed to GitHub.
+      - key: MARKETING_CLOUD_MODE
+        value: "true"
+      - key: MARKETING_RUNTIME_FILE
+        value: /opt/render/project/src/data/cloud-runtime.json
+      - key: APP_BASE_URL
+        value: https://exhibition-marketing-automation.onrender.com
       - key: PYTHON_VERSION
         value: "3.11"
       - key: HTTPS_ONLY
-        value: "false"
+        value: "true"
+

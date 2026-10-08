@@ -57,34 +57,20 @@ def get_user_by_email(db: Session, email: str) -> Optional[User]:
     return db.query(User).filter(User.email == email).first()
 
 
-def create_demo_account(db: Session) -> User:
-    """Create demo account if it doesn't exist."""
-    existing = get_user_by_email(db, "demo@example.com")
+def create_demo_account(db: Session):
+    from app.core.security import development_feature
+    import os
+    if not development_feature('ENABLE_DEMO_ACCOUNT'):
+        return None
+    password = os.getenv('DEMO_ACCOUNT_PASSWORD')
+    email = os.getenv('DEMO_ACCOUNT_EMAIL')
+    if not password or len(password) < 16 or not email:
+        raise ValueError('Explicit development demo configuration required')
+    existing = get_user_by_email(db, email)
     if existing:
-        # Mark as phone verified for demo
-        if not existing.phone_verified:
-            existing.phone_verified = True
-            existing.sms_verified_at = datetime.utcnow()
-            db.commit()
         return existing
-    
-    user = create_user(
-        db=db,
-        email="demo@example.com",
-        username="Demo User",
-        password="demo123",
-        company_name="Exhibition Design Co.",
-        is_demo=True
-    )
-    
-    # Mark as phone verified for demo
-    user.phone_verified = True
-    user.sms_verified_at = datetime.utcnow()
-    
-    # Create demo data
-    create_demo_data(db, user.id)
-    
-    return user
+    return create_user(db, email, 'Development Demo', password, is_demo=True)
+
 
 
 def create_demo_data(db: Session, user_id: int):

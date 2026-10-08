@@ -25,18 +25,15 @@ from app.schemas.schemas import (
 from app.services.content_generator import generate_all_content
 from app.services.ai_service import ai_service
 from app.services.scheduler import scheduler
+from app.services.publishing import prepare_post, immediate, execute_post, post_result, owned, process_post
+from app.core.credentials import CredentialStore, has_credentials, remove_credentials
 
 router = APIRouter()
 
 
 def require_sms_verified(request: Request) -> int:
-    """Require user to be authenticated and SMS verified. Returns user_id."""
-    user_id = request.session.get("user_id")
-    if not user_id:
-        raise HTTPException(status_code=401, detail="Not authenticated")
-    if not request.session.get("sms_verified"):
-        raise HTTPException(status_code=403, detail="Phone verification required")
-    return user_id
+    from app.core.dependencies import require_verified_session
+    return require_verified_session(request)
 
 
 # ==================== Campaign Endpoints ====================
@@ -236,46 +233,28 @@ async def generate_content(
     if provider == "auto":
         provider = ai_service.get_provider_name()
     
-    # Try AI generation first if available
-    use_ai = use_ai and ai_service.is_available() and provider != "none"
-    
-    if use_ai:
-        try:
-            linkedin_post = await ai_service.generate_linkedin_post(
-                gen_request.customer_industry,
-                gen_request.exhibition_name,
-                provider
-            )
-            facebook_post = await ai_service.generate_facebook_post(
-                gen_request.customer_industry,
-                gen_request.exhibition_name,
-                provider
-            )
-            google_post = await ai_service.generate_google_business_post(
-                gen_request.customer_industry,
-                gen_request.exhibition_name,
-                provider
-            )
-            image_prompts = await ai_service.generate_image_prompts(
-                gen_request.customer_industry,
-                gen_request.exhibition_name,
-                provider
-            )
-        except Exception as e:
-            # Fallback to template-based generation on error
-            content = generate_all_content(gen_request.customer_industry, gen_request.exhibition_name)
-            linkedin_post = content["linkedin_post"]
-            facebook_post = content["facebook_post"]
-            google_post = content["google_business_post"]
-            image_prompts = content["image_prompts"]
-    else:
-        # Use template-based generation
-        content = generate_all_content(gen_request.customer_industry, gen_request.exhibition_name)
-        linkedin_post = content["linkedin_post"]
-        facebook_post = content["facebook_post"]
-        google_post = content["google_business_post"]
-        image_prompts = content["image_prompts"]
-    
+    from app.services import sales_copy as sales, sales_copy_store
+    from app.models.models import SalesBrief
+    import json
+    brief_payload = sales.analyze(sales.Brief(target_audience=gen_request.customer_industry+' exhibitors',
+        industry=gen_request.customer_industry, trade_show=gen_request.exhibition_name))
+    brief_row = SalesBrief(user_id=user_id,campaign_id=db_campaign.id,payload=json.dumps(brief_payload))
+    db.add(brief_row); db.flush()
+    mode = 'ai' if use_ai and ai_service.is_available() and provider != 'none' else 'local'
+    generated = {}
+    for platform in ('linkedin','facebook','google_business'):
+        if mode == 'ai':
+            try:
+                generated[platform] = await ai_service.generate_content(sales.ai_prompt(brief_payload,platform),provider=provider)
+            except Exception:
+                db.rollback()
+                raise HTTPException(502,'AI drafting failed; no silent template fallback') from None
+        else:
+            generated[platform] = sales.generate_local(brief_payload,platform)
+        sales_copy_store.create_copy(db,brief_row,platform,generated[platform],mode)
+    linkedin_post,facebook_post,google_post = (generated[p] for p in ('linkedin','facebook','google_business'))
+    image_prompts = generate_all_content(gen_request.customer_industry,gen_request.exhibition_name)['image_prompts']
+
     # Save each content type to database
     content_types = [
         ("linkedin", linkedin_post),
@@ -312,6 +291,13 @@ async def delete_campaign(campaign_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Campaign not found")
     
     # Delete associated content first
+    from app.models.models import OptimizedContent
+    for post in db.query(ScheduledPost).filter(ScheduledPost.campaign_id == campaign_id).all():
+        if post.status in {'draft', 'scheduled'}:
+            post.status = 'cancelled'
+        post.campaign_id = None
+        post.optimized_content_id = None
+    db.query(OptimizedContent).filter(OptimizedContent.campaign_id == campaign_id).delete()
     db.query(GeneratedContent).filter(GeneratedContent.campaign_id == campaign_id).delete()
     
     # Delete the campaign
@@ -324,32 +310,10 @@ async def delete_campaign(campaign_id: int, db: Session = Depends(get_db)):
 # ==================== Social Accounts Endpoints ====================
 
 @router.post("/social-accounts", response_model=SocialAccountResponse)
-async def create_social_account(
-    account: SocialAccountCreate, 
-    db: Session = Depends(get_db)
-):
-    """Create a new social media account connection."""
-    db_account = SocialAccount(
-        platform=account.platform,
-        account_name=account.account_name,
-        account_id=account.account_id,
-        access_token=account.access_token,
-        refresh_token=account.refresh_token,
-        token_expires_at=account.token_expires_at
-    )
-    db.add(db_account)
-    db.commit()
-    db.refresh(db_account)
-    
-    return SocialAccountResponse(
-        id=db_account.id,
-        platform=db_account.platform,
-        account_name=db_account.account_name,
-        account_id=db_account.account_id,
-        is_active=db_account.is_active,
-        created_at=db_account.created_at,
-        updated_at=db_account.updated_at
-    )
+async def create_social_account(account: SocialAccountCreate, db: Session = Depends(get_db)):
+    row = store_account(db, account.model_dump(), create=True)
+    return SocialAccountResponse.model_validate(row)
+
 
 
 @router.get("/social-accounts", response_model=list[SocialAccountResponse])
@@ -370,7 +334,7 @@ async def list_social_accounts(
             platform=a.platform,
             account_name=a.account_name,
             account_id=a.account_id,
-            is_active=a.is_active,
+            is_active=a.is_active, is_mock_mode=a.is_mock_mode,
             created_at=a.created_at,
             updated_at=a.updated_at
         )
@@ -390,65 +354,35 @@ async def get_social_account(account_id: int, db: Session = Depends(get_db)):
         platform=account.platform,
         account_name=account.account_name,
         account_id=account.account_id,
-        is_active=account.is_active,
+        is_active=account.is_active, is_mock_mode=account.is_mock_mode,
         created_at=account.created_at,
         updated_at=account.updated_at
     )
 
 
 @router.delete("/social-accounts/{account_id}")
-async def delete_social_account(account_id: int, request: Request, db: Session = Depends(get_db)):
-    """Delete a social media account."""
-    user_id = require_sms_verified(request)
-    account = db.query(SocialAccount).filter(SocialAccount.id == account_id, SocialAccount.user_id == user_id).first()
-    if not account:
-        raise HTTPException(status_code=404, detail="Social account not found")
-    
+async def delete_social_account(account_id: int, db: Session = Depends(get_db)):
+    owner = db.info['owner_id']
+    account = owned(db, SocialAccount, account_id, owner)
+    if account.account_type == 'member' and account.platform == 'linkedin':
+        raise HTTPException(409, 'Use LinkedIn disconnect to preserve account and publishing history')
+    remove_credentials(db, owner, f'account:{account.id}')
+    db.query(ScheduledPost).filter(ScheduledPost.social_account_id == account_id,
+        ScheduledPost.status.in_(['draft', 'scheduled'])).update({'status': 'cancelled'})
     db.delete(account)
     db.commit()
-    
-    return {"message": "Social account deleted successfully"}
+    return {'success': True, 'message': 'Account deleted'}
+
 
 
 # ==================== Scheduled Posts Endpoints ====================
 
 @router.post("/schedule", response_model=ScheduledPostResponse)
-async def schedule_post(
-    request_body: SchedulePostRequest,
-    req: Request,
-    db: Session = Depends(get_db)
-):
-    """Schedule a post for automatic publishing."""
-    user_id = require_sms_verified(req)
-    
-    db_post = ScheduledPost(
-        user_id=user_id,
-        campaign_id=request_body.campaign_id,
-        content_id=request_body.content_id,
-        platform=request_body.platform,
-        social_account_id=request_body.social_account_id,
-        content=request_body.content,
-        scheduled_at=request_body.scheduled_at,
-        status="scheduled"
-    )
-    db.add(db_post)
+async def schedule_post(request_body: SchedulePostRequest, req: Request, db: Session = Depends(get_db)):
+    post = prepare_post(db, db.info['owner_id'], request_body.model_dump(), schedule=True)
     db.commit()
-    db.refresh(db_post)
-    
-    return ScheduledPostResponse(
-        id=db_post.id,
-        campaign_id=db_post.campaign_id,
-        content_id=db_post.content_id,
-        platform=db_post.platform,
-        social_account_id=db_post.social_account_id,
-        content=db_post.content,
-        scheduled_at=db_post.scheduled_at,
-        published_at=db_post.published_at,
-        status=db_post.status,
-        platform_post_id=db_post.platform_post_id,
-        error_message=db_post.error_message,
-        created_at=db_post.created_at
-    )
+    return scheduled_response(post)
+
 
 
 @router.get("/scheduled-posts", response_model=list[ScheduledPostResponse])
@@ -470,23 +404,7 @@ async def list_scheduled_posts(
     
     posts = query.order_by(ScheduledPost.created_at.desc()).all()
     
-    return [
-        ScheduledPostResponse(
-            id=p.id,
-            campaign_id=p.campaign_id,
-            content_id=p.optimized_content_id,
-            platform=p.platform,
-            social_account_id=p.social_account_id,
-            content=p.content,
-            scheduled_at=p.scheduled_at,
-            published_at=p.published_at,
-            status=p.status,
-            platform_post_id=p.platform_post_id,
-            error_message=p.error_message,
-            created_at=p.created_at
-        )
-        for p in posts
-    ]
+    return [scheduled_response(p) for p in posts]
 
 
 @router.get("/scheduled-posts/{post_id}", response_model=ScheduledPostResponse)
@@ -501,20 +419,7 @@ async def get_scheduled_post(post_id: int, request: Request, db: Session = Depen
     if not post:
         raise HTTPException(status_code=404, detail="Scheduled post not found")
     
-    return ScheduledPostResponse(
-        id=post.id,
-        campaign_id=post.campaign_id,
-        content_id=post.content_id,
-        platform=post.platform,
-        social_account_id=post.social_account_id,
-        content=post.content,
-        scheduled_at=post.scheduled_at,
-        published_at=post.published_at,
-        status=post.status,
-        platform_post_id=post.platform_post_id,
-        error_message=post.error_message,
-        created_at=post.created_at
-    )
+    return scheduled_response(post)
 
 
 @router.delete("/scheduled-posts/{post_id}")
@@ -529,6 +434,12 @@ async def delete_scheduled_post(post_id: int, request: Request, db: Session = De
     if not post:
         raise HTTPException(status_code=404, detail="Scheduled post not found")
     
+    if post.execution_mode == 'REAL':
+        if post.status in {'processing', 'published', 'reconciliation_required'}:
+            raise HTTPException(409, 'Retain real publishing history; reconcile uncertain jobs separately')
+        post.status = 'cancelled'
+        db.commit()
+        return {'message': 'Job cancelled; idempotency history retained'}
     if post.status == "published":
         raise HTTPException(status_code=400, detail="Cannot delete a published post")
     
@@ -539,98 +450,18 @@ async def delete_scheduled_post(post_id: int, request: Request, db: Session = De
 
 
 @router.post("/publish-now")
-async def publish_now(
-    request_body: PublishNowRequest,
-    req: Request,
-    db: Session = Depends(get_db)
-):
-    """Publish a post immediately to the specified platform."""
-    user_id = require_sms_verified(req)
-    
-    # Get social account if specified
-    account = None
-    if request_body.social_account_id:
-        account = db.query(SocialAccount).filter(
-            SocialAccount.id == request_body.social_account_id
-        ).first()
-    
-    # Check if mock mode is enabled
-    use_mock = account.is_mock_mode if account else True
-    
-    # Publish based on platform and account configuration
-    if request_body.platform == "linkedin":
-        if use_mock:
-            from app.services.mock_service import get_mock_service
-            service = get_mock_service("linkedin", account.account_name if account else None)
-            result = service.post_text(request_body.content)
-        else:
-            from app.services.linkedin_service import get_linkedin_service
-            access_token = account.access_token if account else None
-            service = get_linkedin_service(access_token)
-            result = await service.post_text(request_body.content)
-    elif request_body.platform == "facebook":
-        if use_mock:
-            from app.services.mock_service import get_mock_service
-            service = get_mock_service("facebook", account.account_name if account else None)
-            result = service.post_text(request_body.content)
-        else:
-            from app.services.facebook_service import get_facebook_service
-            access_token = account.access_token if account else None
-            page_id = account.account_id if account else None
-            service = get_facebook_service(access_token)
-            result = await service.post_to_page(request_body.content, page_id)
-    elif request_body.platform == "google_business":
-        if use_mock:
-            from app.services.mock_service import get_mock_service
-            service = get_mock_service("google_business", account.account_name if account else None)
-            result = service.post_text(request_body.content)
-        else:
-            from app.services.google_business_service import get_google_business_service
-            api_key = account.access_token if account else None
-            access_token = account.refresh_token if account else None
-            location_id = account.account_id if account else None
-            service = get_google_business_service(api_key, access_token)
-            result = await service.create_local_post(request_body.content, location_id)
-    else:
-        return {"success": False, "error": f"Unknown platform: {request_body.platform}"}
-    
-    # Save to scheduled posts for record
-    db_post = ScheduledPost(
-        user_id=user_id,
-        platform=request_body.platform,
-        social_account_id=request_body.social_account_id,
-        content=request_body.content,
-        scheduled_at=None,
-        published_at=None,
-        status="published" if result["success"] else "failed",
-        platform_post_id=result.get("post_id"),
-        error_message=result.get("error") if not result["success"] else None
-    )
-    db.add(db_post)
-    db.commit()
-    
-    return result
+async def publish_now(request_body: PublishNowRequest, req: Request, db: Session = Depends(get_db)):
+    return await immediate(db, db.info['owner_id'], request_body.model_dump())
+
 
 
 # ==================== Status Endpoint ====================
 
 @router.get("/status")
 async def get_status():
-    """Get the status of AI services and scheduler."""
-    from app.services.linkedin_service import LinkedInService
-    from app.services.facebook_service import FacebookService
-    from app.services.google_business_service import GoogleBusinessService
-    
-    return {
-        "ai_available": ai_service.is_available(),
-        "ai_provider": ai_service.get_provider_name(),
-        "linkedin_configured": LinkedInService().is_configured(),
-        "facebook_configured": FacebookService().is_configured(),
-        "google_business_configured": GoogleBusinessService().is_configured(),
-        "scheduler_running": True,
-        "message": "System ready",
-        "mock_mode_available": True
-    }
+    return {'scheduler_running': scheduler._running, 'real_publishing_enabled': False,
+            'message': 'Phase 1: explicit MOCK / TEST only'}
+
 
 
 # ==================== Content Editing Endpoints ====================
@@ -914,108 +745,26 @@ async def list_platforms():
 
 
 @router.post("/publish/batch")
-async def publish_to_multiple_platforms(
-    request: dict,
-    db: Session = Depends(get_db)
-):
-    """
-    Publish content to multiple platforms at once.
-    
-    Supports all platforms: linkedin, facebook, instagram, x, google_business
-    Automatically uses mock mode for unconfigured platforms.
-    
-    Request body:
-    {
-        "platforms": ["linkedin", "facebook", "instagram"],
-        "content": "Your post content here"
-    }
-    """
-    from app.services.platform_adapter import get_platform_adapter, PlatformType
-    
-    platforms = request.get("platforms", [])
-    content = request.get("content", "")
-    
+async def publish_to_multiple_platforms(request: dict, db: Session = Depends(get_db)):
+    platforms = request.get('platforms', [])
+    if request.get('execution_mode') == 'REAL' and platforms != ['linkedin']:
+        raise HTTPException(403, 'Only one LinkedIn target is allowed')
     if not platforms:
-        raise HTTPException(status_code=400, detail="At least one platform is required")
-    if not content:
-        raise HTTPException(status_code=400, detail="Content is required")
-    
+        raise HTTPException(400, 'Platforms required')
+    posts = [prepare_post(db, db.info['owner_id'], {**request, 'platform': platform}) for platform in platforms]
     results = []
-    
-    for platform_name in platforms:
-        try:
-            adapter = get_platform_adapter(platform_name)
-            result = await adapter.publish(content)
-            results.append(result.to_dict())
-            
-            # Parse published_at if it's a string
-            published_at = result.published_at
-            if published_at and isinstance(published_at, str):
-                published_at = datetime.fromisoformat(published_at.replace('Z', '+00:00'))
-            
-            # Save to scheduled posts for history
-            db_post = ScheduledPost(
-                platform=platform_name,
-                content=content,
-                scheduled_at=None,
-                published_at=published_at,
-                status="published" if result.success else "failed",
-                platform_post_id=result.post_id,
-                error_message=result.error
-            )
-            db.add(db_post)
-        except ValueError as e:
-            results.append({
-                "success": False,
-                "platform": platform_name,
-                "error": str(e)
-            })
-    
+    for post in posts:
+        results.append(await process_post(db, post))
     db.commit()
-    
-    successful = sum(1 for r in results if r.get("success"))
-    return {
-        "total": len(platforms),
-        "successful": successful,
-        "failed": len(platforms) - successful,
-        "results": results
-    }
+    return {'execution_mode': request['execution_mode'], 'simulated': request['execution_mode'] != 'REAL', 'total': len(results),
+            'successful': sum(x['success'] for x in results), 'results': results}
+
 
 
 @router.post("/publish/{platform}")
-async def publish_to_single_platform(
-    platform: str,
-    content: str,
-    db: Session = Depends(get_db)
-):
-    """Publish content to a single platform."""
-    from app.services.platform_adapter import get_platform_adapter
-    
-    try:
-        adapter = get_platform_adapter(platform)
-        result = await adapter.publish(content)
-        
-        # Parse published_at if it's a string
-        published_at = result.published_at
-        if published_at and isinstance(published_at, str):
-            published_at = datetime.fromisoformat(published_at.replace('Z', '+00:00'))
-        
-        # Save to scheduled posts for history
-        db_post = ScheduledPost(
-            platform=platform,
-            content=content,
-            scheduled_at=None,
-            published_at=published_at,
-            status="published" if result.success else "failed",
-            platform_post_id=result.post_id,
-            error_message=result.error
-        )
-        db.add(db_post)
-        db.commit()
-        
-        return result.to_dict()
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+async def publish_to_single_platform(platform: str, content: str, execution_mode: str, db: Session = Depends(get_db)):
+    return await immediate(db, db.info['owner_id'], dict(platform=platform, content=content, execution_mode=execution_mode))
+
 
 
 # ==================== Content Optimization Endpoints ====================
@@ -1259,281 +1008,149 @@ async def preview_publish(
 
 
 @router.post("/campaigns/{campaign_id}/publish")
-async def publish_campaign(
-    campaign_id: int,
-    request: dict,
-    db: Session = Depends(get_db)
-):
-    """
-    Publish campaign content to specified platforms.
-    
-    If publish_now is True, publishes immediately.
-    Otherwise, schedules for the specified time.
-    """
-    from app.models.models import Campaign, OptimizedContent, ScheduledPost
-    from datetime import datetime
-    import json
-    
-    platforms = request.get("platforms", [])
-    publish_now = request.get("publish_now", True)
-    scheduled_at = request.get("scheduled_at")
-    
+async def publish_campaign(campaign_id: int, request: dict, db: Session = Depends(get_db)):
+    from app.models.models import OptimizedContent
+    owner = db.info['owner_id']
+    campaign = owned(db, Campaign, campaign_id, owner)
+    platforms = request.get('platforms', [])
+    if request.get('execution_mode') == 'REAL' and platforms != ['linkedin']:
+        raise HTTPException(403, 'Only one LinkedIn target is allowed')
     if not platforms:
-        raise HTTPException(status_code=400, detail="At least one platform is required")
-    
-    campaign = db.query(Campaign).filter(Campaign.id == campaign_id).first()
-    if not campaign:
-        raise HTTPException(status_code=404, detail="Campaign not found")
-    
-    # Get optimized content
-    optimized_contents = db.query(OptimizedContent).filter(
-        OptimizedContent.campaign_id == campaign_id
-    ).all()
-    optimized_map = {oc.platform: oc for oc in optimized_contents}
-    
-    results = []
+        raise HTTPException(400, 'Platforms required')
+    posts = []
+    schedule = not request.get('publish_now', True)
     for platform in platforms:
-        if platform not in optimized_map:
-            results.append({
-                "platform": platform,
-                "success": False,
-                "error": "No optimized content found. Run optimization first."
-            })
-            continue
-        
-        oc = optimized_map[platform]
-        
-        # Create scheduled post entry
-        post = ScheduledPost(
-            campaign_id=campaign_id,
-            optimized_content_id=oc.id,
-            platform=platform,
-            content=oc.optimized_content,
-            status="draft",
-            created_at=datetime.utcnow()
-        )
-        db.add(post)
-        db.flush()
-        
-        if publish_now:
-            # Publish immediately - use sync version
-            from app.services.platform_adapter import get_platform_adapter
-            
-            try:
-                adapter = get_platform_adapter(post.platform)
-                result = adapter.publish_sync(post.content)
-                
-                post.status = "published" if result.success else "failed"
-                post.published_at = datetime.utcnow() if result.success else None
-                post.platform_post_id = result.post_id
-                post.url = result.url
-                post.is_mock = result.is_mock
-                post.error_message = result.error if not result.success else None
-                
-                results.append({
-                    "platform": platform,
-                    "success": result.success,
-                    "post_id": post.id,
-                    "status": post.status,
-                    "platform_post_id": result.post_id,
-                    "url": result.url,
-                    "is_mock": result.is_mock,
-                    "error": result.error if not result.success else None
-                })
-            except Exception as e:
-                post.status = "failed"
-                post.error_message = str(e)
-                results.append({
-                    "platform": platform,
-                    "success": False,
-                    "post_id": post.id,
-                    "status": "failed",
-                    "error": str(e)
-                })
-        else:
-            # Schedule for later
-            if scheduled_at:
-                sched_time = datetime.fromisoformat(scheduled_at.replace('Z', '+00:00'))
-            else:
-                # Default to 1 hour from now
-                sched_time = datetime.utcnow() + timedelta(hours=1)
-            
-            from app.services.scheduler_service import scheduler_service
-            success = scheduler_service.schedule_post(post.id, sched_time)
-            
-            results.append({
-                "platform": platform,
-                "success": success,
-                "post_id": post.id,
-                "status": "scheduled" if success else "draft",
-                "scheduled_at": sched_time.isoformat() if success else None
-            })
-    
-    # Update campaign status
-    campaign.status = "publishing" if publish_now else "scheduled"
+        content = db.query(OptimizedContent).filter_by(campaign_id=campaign_id, platform=platform).first()
+        if content is None:
+            raise HTTPException(400, 'Optimized content required for each platform')
+        posts.append(prepare_post(db, owner, {**request, 'campaign_id': campaign_id,
+            'content_id': content.id, 'platform': platform, 'content': content.optimized_content}, schedule=schedule))
+    results = []
+    for post in posts:
+        if not schedule:
+            await process_post(db, post)
+        results.append(post_result(post))
+    campaign.status = 'scheduled' if schedule else (('completed' if request['execution_mode'] == 'REAL' else 'simulated') if all(x['success'] for x in results) else 'failed')
     db.commit()
-    
-    return {
-        "campaign_id": campaign_id,
-        "publish_mode": "immediate" if publish_now else "scheduled",
-        "total": len(platforms),
-        "successful": sum(1 for r in results if r.get("success")),
-        "results": results
-    }
+    return {'campaign_id': campaign_id, 'execution_mode': request['execution_mode'], 'simulated': request['execution_mode'] != 'REAL',
+            'results': results, 'total': len(results), 'successful': sum(x['success'] for x in results)}
+
 
 
 # ==================== Settings Endpoints ====================
 
 @router.get("/settings/social-accounts")
 async def get_social_accounts(db: Session = Depends(get_db)):
-    """Get all social media account configurations."""
-    from app.models.models import SocialAccount
-    
-    accounts = db.query(SocialAccount).all()
-    
-    return {
-        "accounts": [
-            {
-                "id": acc.id,
-                "platform": acc.platform,
-                "account_name": acc.account_name,
-                "account_id": acc.account_id,
-                "is_active": acc.is_active,
-                "is_mock_mode": acc.is_mock_mode,
-                "has_token": bool(acc.access_token),
-                "has_api_key": bool(acc.api_key),
-                "created_at": acc.created_at.isoformat() if acc.created_at else None
-            }
-            for acc in accounts
-        ]
-    }
+    return {'accounts': [dict(id=a.id, platform=a.platform, account_name=a.account_name,
+        account_id=a.account_id, is_active=a.is_active, is_mock_mode=a.is_mock_mode,
+        has_token=has_credentials(db, db.info['owner_id'], f'account:{a.id}'),
+        has_api_key=False, created_at=a.created_at) for a in db.query(SocialAccount).all()]}
+
 
 
 @router.post("/settings/social-accounts")
-async def save_social_account(
-    request: dict,
-    db: Session = Depends(get_db)
-):
-    """Save or update a social media account configuration."""
-    from app.models.models import SocialAccount
-    from datetime import datetime
-    
-    platform = request.get("platform")
-    account_name = request.get("account_name")
-    account_id = request.get("account_id")
-    access_token = request.get("access_token")
-    api_key = request.get("api_key")
-    is_mock_mode = request.get("is_mock_mode", True)
-    
-    if not platform or not account_name:
-        raise HTTPException(status_code=400, detail="Platform and account name are required")
-    
-    existing = db.query(SocialAccount).filter(
-        SocialAccount.platform == platform
-    ).first()
-    
-    if existing:
-        existing.account_name = account_name
-        existing.account_id = account_id
-        if access_token:
-            existing.access_token = access_token
-        if api_key:
-            existing.api_key = api_key
-        existing.is_mock_mode = is_mock_mode
-        existing.updated_at = datetime.utcnow()
-        account = existing
-    else:
-        account = SocialAccount(
-            platform=platform,
-            account_name=account_name,
-            account_id=account_id,
-            access_token=access_token,
-            api_key=api_key,
-            is_mock_mode=is_mock_mode
-        )
-        db.add(account)
-    
-    db.commit()
-    db.refresh(account)
-    
-    return {
-        "success": True,
-        "id": account.id,
-        "platform": account.platform,
-        "is_mock_mode": account.is_mock_mode,
-        "message": "Account saved successfully"
-    }
+async def save_social_account(request: dict, db: Session = Depends(get_db)):
+    row = store_account(db, request)
+    return {'success': True, 'id': row.id, 'platform': row.platform, 'is_mock_mode': row.is_mock_mode}
+
 
 
 @router.delete("/settings/social-accounts/{account_id}")
 async def delete_social_account(account_id: int, db: Session = Depends(get_db)):
-    """Delete a social media account configuration."""
-    from app.models.models import SocialAccount
-    
-    account = db.query(SocialAccount).filter(SocialAccount.id == account_id).first()
-    if not account:
-        raise HTTPException(status_code=404, detail="Account not found")
-    
+    owner = db.info['owner_id']
+    account = owned(db, SocialAccount, account_id, owner)
+    if account.account_type == 'member' and account.platform == 'linkedin':
+        raise HTTPException(409, 'Use LinkedIn disconnect to preserve account and publishing history')
+    remove_credentials(db, owner, f'account:{account.id}')
+    db.query(ScheduledPost).filter(ScheduledPost.social_account_id == account_id,
+        ScheduledPost.status.in_(['draft', 'scheduled'])).update({'status': 'cancelled'})
     db.delete(account)
     db.commit()
-    
-    return {"success": True, "message": "Account deleted"}
+    return {'success': True, 'message': 'Account deleted'}
+
 
 
 @router.post("/settings/api-keys")
 async def save_api_key(request: Request, db: Session = Depends(get_db)):
-    """Save AI API key for a service."""
-    user_id = require_sms_verified(request)
-    
-    from pydantic import BaseModel
-    
-    class ApiKeyRequest(BaseModel):
-        service: str
-        api_key: str
-    
     data = await request.json()
-    
-    # Store in environment variable (in production, use secure storage)
-    import os
-    service = data.get("service")
-    api_key = data.get("api_key")
-    
-    if service == "openai":
-        os.environ["OPENAI_API_KEY"] = api_key
-    elif service == "deepseek":
-        os.environ["DEEPSEEK_API_KEY"] = api_key
-    
-    return {"success": True, "message": f"{service} API key saved"}
+    if data.get('service') not in {'openai', 'deepseek'} or not data.get('api_key'):
+        raise HTTPException(400, 'Service and key required')
+    CredentialStore().put(db, db.info['owner_id'], 'ai:' + data['service'], 'api_key', data['api_key'])
+    db.commit()
+    return {'success': True, 'message': 'Encrypted key stored; provider activation deferred'}
+
 
 
 @router.get("/settings/platforms-status")
-async def get_platforms_status():
-    """Get the configuration status of all platforms."""
+async def get_platforms_status(db: Session = Depends(get_db)):
     from app.services.platform_adapter import get_all_platform_configs
-    from app.models.models import SocialAccount
-    from app.core.database import SessionLocal
-    
-    platforms = get_all_platform_configs()
-    db = SessionLocal()
-    
-    accounts = db.query(SocialAccount).all()
-    account_map = {acc.platform: acc for acc in accounts}
-    db.close()
-    
-    status = []
-    for platform in platforms:
-        account = account_map.get(platform["id"])
-        status.append({
-            "id": platform["id"],
-            "name": platform["name"],
-            "icon": platform["icon"],
-            "color": platform["color"],
-            "character_limit": platform["character_limit"],
-            "supports_images": platform["supports_images"],
-            "is_configured": platform["is_configured"] and not platform["is_mock"],
-            "is_mock_mode": platform["is_mock"] or (account.is_mock_mode if account else True),
-            "has_credentials": bool(account.access_token if account else None),
-            "account_name": account.account_name if account else None
-        })
-    
-    return {"platforms": status}
+    accounts = {a.platform: a for a in db.query(SocialAccount).all()}
+    result = []
+    for item in get_all_platform_configs():
+        acc = accounts.get(item['id'])
+        item.update(is_mock_mode=bool(acc and acc.is_mock_mode), real_enabled=False,
+                    has_credentials=bool(acc and has_credentials(db, db.info['owner_id'], f'account:{acc.id}')),
+                    account_name=acc.account_name if acc else None)
+        result.append(item)
+    return {'platforms': result}
+
+
+
+def scheduled_response(post):
+    return ScheduledPostResponse(id=post.id, campaign_id=post.campaign_id,
+        content_id=post.optimized_content_id, platform=post.platform,
+        social_account_id=post.social_account_id, content=post.content,
+        scheduled_at=post.scheduled_at, published_at=post.published_at,
+        status=post.status, platform_post_id=post.platform_post_id,
+        error_message=post.error_message, created_at=post.created_at, updated_at=post.updated_at,
+        execution_mode=post.execution_mode, is_mock=post.is_mock, url=post.url, attempt_count=post.attempt_count,
+        idempotency_key=post.idempotency_key, timezone=post.source_timezone,
+        last_attempt_at=post.last_attempt_at, next_retry_at=post.next_retry_at)
+
+
+def store_account(db, data, create=False):
+    from app.services.platform_adapter import PlatformType
+    platform = PlatformType(data.get('platform')).value
+    owner = db.info['owner_id']
+    if not data.get('account_name'):
+        raise HTTPException(400, 'Account name required')
+    row = None
+    if data.get('id') is not None:
+        row = owned(db, SocialAccount, data['id'], owner)
+        if row.platform != platform:
+            raise HTTPException(400, 'Account platform cannot change')
+    elif not create:
+        row = db.query(SocialAccount).filter_by(platform=platform).first()
+    if row is None:
+        row = SocialAccount(user_id=owner, platform=platform)
+        db.add(row)
+    if row.connection_status == 'connected':
+        raise HTTPException(409, 'OAuth-bound account must be managed through LinkedIn connection settings')
+    row.account_name = data['account_name']
+    row.account_id = data.get('account_id')
+    row.is_mock_mode = bool(data.get('is_mock_mode', False))
+    row.token_expires_at = data.get('token_expires_at')
+    db.flush()
+    for kind in ('access_token', 'refresh_token', 'api_key'):
+        if data.get(kind):
+            CredentialStore().put(db, owner, f'account:{row.id}', kind, data[kind])
+    db.commit()
+    db.refresh(row)
+    return row
+
+
+@router.post('/settings/test-connection')
+async def test_connection(data: dict, db: Session = Depends(get_db)):
+    service = data.get('service')
+    if service not in {'openai', 'deepseek', 'linkedin', 'facebook', 'instagram', 'x', 'google_business'}:
+        raise HTTPException(400, 'Unknown service')
+    if data.get('execution_mode') != 'TEST':
+        raise HTTPException(403, 'Only local TEST validation available in Phase 1')
+    scope = 'ai:' + service
+    if service not in {'openai', 'deepseek'}:
+        account = db.query(SocialAccount).filter_by(platform=service).first()
+        scope = f'account:{account.id}' if account else 'missing'
+    return {'success': False, 'execution_mode': 'TEST', 'is_test': True, 'is_mock': False,
+            'provider_contacted': False, 'connection_verified': False,
+            'credentials_present': has_credentials(db, db.info['owner_id'], scope),
+            'message': 'Local configuration check only; provider connection NOT VERIFIED'}

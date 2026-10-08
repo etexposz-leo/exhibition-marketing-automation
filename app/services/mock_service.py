@@ -44,11 +44,13 @@ class MockPostingService:
         return {
             "success": True,
             "post_id": post_id,
-            "url": url,
+            "url": None,
+            "execution_mode": "MOCK",
+            "simulated": True,
             "platform": self.platform,
             "account": self.account_name,
             "content_preview": content[:100] + "..." if len(content) > 100 else content,
-            "published_at": datetime.utcnow().isoformat(),
+            "published_at": None,
             "is_mock": True,
             "message": f"✅ Mock post published successfully to {self.platform}!"
         }

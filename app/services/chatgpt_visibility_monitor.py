@@ -177,7 +177,7 @@ class ChatGPTVisibilityMonitor:
             return self._analyze_response(answer, keyword, competitor_names)
             
         except Exception as e:
-            logger.error(f"Error querying ChatGPT: {e}")
+            logger.error(f"Error querying ChatGPT: [details withheld]")
             # Fall back to mock data
             return self._generate_mock_visibility_for_keyword(keyword)
     
