@@ -2,7 +2,7 @@
 <style>body{font:16px system-ui;background:#f3f6fa;color:#172d40;margin:32px auto;padding:20px;max-width:1150px}section,article{background:white;padding:22px;border-radius:12px;margin:12px 0}#cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:12px}label{display:block;margin:14px 0}input,select,textarea,button{font:inherit;padding:9px;max-width:95%}textarea{width:95%;min-height:130px}pre{white-space:pre-wrap;overflow-wrap:anywhere}button,a{margin-right:8px}small{display:block;color:#526579}</style>
 <h1>六渠道管理</h1><p>国际渠道：LinkedIn / Facebook / Instagram / TikTok。中国平台：小红书 / 抖音。账号和授权互不通用。</p>
 <p>新增渠道当前提供本地内容准备和人工发布包；连接资格未核实，不显示为已接通。此页面没有发布按钮。</p>
-<p><a href="/meta">Meta</a><a href="/linkedin">LinkedIn</a><button id="refresh">刷新状态</button></p><p id="status" role="status"></p><div id="cards"></div>
+<p><a href="/meta">Meta</a><a href="/linkedin">LinkedIn</a><a href="/tiktok">TikTok 账号连接</a><button id="refresh">刷新状态</button></p><p id="status" role="status"></p><div id="cards"></div>
 <section><h2>一个 Campaign，独立内容版本</h2><label>选择 Campaign <select id="campaign"></select></label><label>新 Campaign 名称 <input id="name"></label><button id="create">创建 Campaign</button>
 <label>内容渠道 <select id="channel"><option value="tiktok">TikTok 国际版 · 竖视频</option><option value="xiaohongshu">小红书 · 标题/图文或视频</option><option value="douyin">抖音 · 竖视频</option></select></label><button id="load">加载最新版本</button>
 <label>标题 <input id="title" maxlength="200"></label><label>正文 / 视频说明 <textarea id="caption"></textarea></label><label>话题（空格分隔）<input id="tags"></label>
