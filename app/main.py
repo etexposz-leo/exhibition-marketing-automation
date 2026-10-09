@@ -347,3 +347,12 @@ async def marketing_backlink_asset(name:str,request:Request):
 
 from app.api.expo_module import router as expo_module_router
 app.include_router(expo_module_router,prefix="/api",dependencies=[Depends(authenticated_session)])
+
+from app.api.tiktok_routes import router as tiktok_router
+app.include_router(tiktok_router, prefix='/api', dependencies=[Depends(authenticated_session)])
+
+@app.get('/tiktok')
+async def tiktok_page(request: Request):
+    if not require_auth(request):
+        return RedirectResponse('/login')
+    return render_template('tiktok.html')
